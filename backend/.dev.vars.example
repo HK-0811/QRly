@@ -1,0 +1,8 @@
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_SERVICE_KEY=<service_role key — bypasses RLS, Worker only>
+SUPABASE_ANON_KEY=<anon key>
+SUPABASE_JWKS_URL=https://<project-ref>.supabase.co/auth/v1/.well-known/jwks.json
+VISITOR_HASH_PEPPER=<random 32+ char string>
+SAFE_BROWSING_API_KEY=
+CLOUDFLARE_API_TOKEN=
+CLOUDFLARE_ZONE_ID=
