@@ -628,5 +628,14 @@ only the first two above may ever carry that prefix.
    also does not support prepared statements, so the client sets `prepare: false`.
 3. ~~**Next.js deploy target**~~ — **resolved: `@opennextjs/cloudflare`.** Configured in
    `frontend/open-next.config.ts` and `frontend/wrangler.jsonc`.
-4. **Map rendering library** — needs to be free, offline-capable, and not require an
-   API key, to keep the $0 claim intact. Decide in phase 6.
+4. ~~**Map rendering library**~~ — **resolved: no library.** Natural Earth's 110m country
+   topology (public domain, 105 KB) is served from `frontend/public/geo/`, projected with
+   `d3-geo` and drawn as inline SVG. No tile server, no API key, nothing metered, and it
+   works offline. The geometry is fetched at render time rather than imported, so it never
+   enters the bundle for anyone who does not open the analytics page.
+
+   The topology keys countries by ISO 3166-1 *numeric* id while Cloudflare reports
+   *alpha-2*, so `tools/build-country-codes.mjs` generates the mapping and commits it.
+   That script carries a deny list of withdrawn codes: CLDR resolves `UK` and `GB` to the
+   same display name, and the first version of the map silently lost the United Kingdom
+   because of it.

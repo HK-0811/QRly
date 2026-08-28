@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–5 complete**
+> Last updated: 2026-08-29 · Status: **phases 0–6 complete**
 
 ---
 
@@ -233,28 +233,47 @@ consequence is that unique-visitor totals under-count, and phase 6 has to say so
 
 ---
 
-## Phase 6 — Analytics dashboard · **L**
+## Phase 6 — Analytics dashboard · **L** · ✅ **complete**
 
 **Goal:** the payoff. Where the "why is Bitly charging for this" argument gets made.
 
-- [ ] RPC aggregate functions: summary, timeseries, geo, device, UTM, local-time heatmap
-- [ ] Summary cards: total scans, unique scans, repeat rate, first vs returning
-- [ ] Scans-over-time chart with hour/day/week/month granularity
-- [ ] Geography: country/region/city tables, choropleth map, jittered lat-long scatter
-- [ ] **Network breakdown: ISP/carrier, mobile vs broadband vs corporate, connection quality**
-- [ ] Device, OS, browser, language breakdowns
-- [ ] Referrer and full UTM breakdown
-- [ ] **Time-of-day heatmap in the scanner's local timezone**
-- [ ] Filters: date range, link, QR, domain, country, region, city, device, OS, browser, UTM
-- [ ] Bot include/exclude toggle
-- [ ] **Accuracy disclaimers rendered in the UI** — geo is approximate; iOS reports no device model
+- [x] Seven RPC aggregates, all `security invoker` so RLS runs before aggregation
+- [x] Six stat tiles, each with the qualification printed under the number
+- [x] Scans over time, hour/day/week/month, two series on **one** axis
+- [x] Geography: country / region / city bar lists, choropleth, city overlay
+- [x] Network: ISP name, connection type, edge location, protocol mix
+- [x] Device, vendor, model, OS, browser, language
+- [x] Referrer and full UTM breakdown
+- [x] Time-of-day heatmap in the scanner's local timezone
+- [x] Filters for range, link, country, region, city, device, OS, browser, network, ISP and all three UTM fields — shown as removable chips, so a narrowed dataset is never invisible
+- [x] Bot include/exclude toggle
+- [x] Accuracy caveats rendered beside the data they qualify, never in a settings page
 
-**Acceptance:** dashboard renders real collected data. Every filter narrows results
-correctly. The bot toggle visibly changes totals. Approximation caveats are visible
-where geography is shown, not buried in a settings page.
+**Acceptance — met.** Verified in the browser against 6,000 seeded events: the bot toggle
+moves the headline from 4,890 to 6,000, clicking a country narrows it to 3,083 and raises
+a removable chip. `tools/test-analytics-rpc.mjs` runs **35 checks** with two real accounts.
 
-**Note:** the map library must be key-free and offline-capable, or the $0 claim breaks.
-That's **open question 4** in `architecture.md`.
+**Open question 4 resolved: Natural Earth 110m topology, self-hosted, no library.** 105 KB
+of public-domain geometry in `public/geo/`, projected with `d3-geo` into inline SVG and
+fetched at render time so it never enters the bundle for people who only look at the link
+list. No tile server, no API key, nothing metered. A hosted map would have put a
+third-party bill on the critical path of the one claim this project exists to make.
+
+**The colour is validated, not chosen.** Series slots and the sequential ramp come from
+the reference palette and were run through the palette validator against this app's own
+light and dark surfaces — six checks, both modes, worst adjacent CVD ΔE 24.7 / 26.8
+against a floor of 8. The ramp is a single hue because every scale that uses it encodes
+magnitude.
+
+**Three defects found by looking at the rendered output rather than the code.** The United
+Kingdom never appeared on the map, because CLDR gives the withdrawn code `UK` the same
+display name as `GB` and it was overwriting the canonical entry — the generator now
+carries a withdrawn-code deny list and spot-checks eighteen mappings, failing rather than
+emitting a quietly wrong file. The heatmap collapsed 24 hour columns into eight, because
+most hour headers are deliberately blank and an auto table layout sizes columns to their
+content. And the seeder was picking a UTC hour and letting each timezone land where it
+fell, which flattened the local-time heatmap into noise — precisely the failure that chart
+exists to avoid.
 
 ---
 

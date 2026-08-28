@@ -1,15 +1,19 @@
-import { EmptyState } from '@/components/ui';
+import { createClient } from '@/lib/supabase/server';
+import { AnalyticsScreen } from '@/components/analytics/analytics-screen';
+import type { LinkWithDomain } from '@/lib/types';
 
-export default function AnalyticsPage() {
-  return (
-    <div className="animate-in">
-      <h1 className="text-[19px] font-semibold tracking-tight">Analytics</h1>
-      <div className="mt-6">
-        <EmptyState
-          title="Coming in phase 6"
-          description="Scan collection lands in phase 5; the dashboard that reads it lands in phase 6."
-        />
-      </div>
-    </div>
-  );
+export const dynamic = 'force-dynamic';
+
+export default async function AnalyticsPage() {
+  const supabase = await createClient();
+
+  // Only the link list is fetched server-side, to populate the filter. Every
+  // aggregate is called from the client so a filter change does not round-trip
+  // through a server render.
+  const { data: links } = await supabase
+    .from('links')
+    .select('*, domains(hostname, is_custom)')
+    .order('created_at', { ascending: false });
+
+  return <AnalyticsScreen links={(links as LinkWithDomain[] | null) ?? []} />;
 }
