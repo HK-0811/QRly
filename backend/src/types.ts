@@ -1,32 +1,12 @@
 /**
  * Canonical shared type source for qrify.
  * The frontend imports from this file by relative path (see architecture.md §13).
- * Keep it dependency-free so it can be imported from a browser bundle.
+ *
+ * Deliberately free of any Cloudflare Workers types. The Worker's `Env` lives in
+ * env.ts instead, because pulling KVNamespace in here would force the browser
+ * bundle's tsconfig to depend on @cloudflare/workers-types for a binding it can
+ * never touch.
  */
-
-// ---------------------------------------------------------------------------
-// Worker environment
-// ---------------------------------------------------------------------------
-
-export interface Env {
-  // bindings
-  LINKS_KV: KVNamespace;
-
-  // plain vars (wrangler.toml [vars])
-  ENVIRONMENT: string;
-  PLATFORM_HOSTNAME: string;
-  DASHBOARD_ORIGIN: string;
-
-  // secrets (.dev.vars locally / `wrangler secret put` in prod)
-  SUPABASE_URL: string;
-  SUPABASE_SERVICE_KEY: string;
-  SUPABASE_ANON_KEY: string;
-  SUPABASE_JWKS_URL: string;
-  VISITOR_HASH_PEPPER: string;
-  SAFE_BROWSING_API_KEY?: string;
-  CLOUDFLARE_API_TOKEN?: string;
-  CLOUDFLARE_ZONE_ID?: string;
-}
 
 // ---------------------------------------------------------------------------
 // Enumerations — mirrored by CHECK constraints in the migrations

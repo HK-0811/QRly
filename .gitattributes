@@ -1,0 +1,7 @@
+# Keep line endings LF in the repo; check out native on Windows.
+* text=auto eol=lf
+*.sql   text eol=lf
+*.md    text eol=lf
+*.png   binary
+*.svg   text eol=lf
+*.ico   binary

@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env } from './types';
+import type { Env } from './env';
 import { health } from './routes/health';
+import { links } from './routes/links';
 import { handleScheduled } from './lib/cron';
 
 const app = new Hono<{ Bindings: Env }>();
@@ -16,6 +17,7 @@ app.use('/api/*', (c, next) =>
 );
 
 app.route('/api', health);
+app.route('/api', links);
 
 // The catch-all redirect route is registered LAST, in phase 3.
 // Anything registered after it would be unreachable.

@@ -2,7 +2,7 @@
 // wrangler normally generates into worker-configuration.d.ts. src/types.ts is the
 // canonical source in this repo, so the global points at it rather than us
 // maintaining a second generated copy that can drift.
-import type { Env as WorkerEnv } from '../src/types';
+import type { Env as WorkerEnv } from '../src/env';
 
 declare global {
   namespace Cloudflare {

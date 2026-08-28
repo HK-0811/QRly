@@ -1,103 +1,120 @@
-import Image from "next/image";
+import Link from 'next/link';
+import { createClient } from '@/lib/supabase/server';
 
-export default function Home() {
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-dvh">
+      <header className="border-b border-[var(--border)]">
+        <div className="mx-auto flex h-14 max-w-5xl items-center px-5">
+          <Link href="/" className="flex items-center gap-2">
+            <Mark />
+            <span className="text-[15px] font-semibold tracking-tight">qrify</span>
+          </Link>
+          <nav className="ml-auto flex items-center gap-1 text-[13.5px]">
+            {user ? (
+              <Link
+                href="/links"
+                className="rounded-md bg-accent-600 px-3 py-1.5 font-medium text-white hover:bg-accent-700"
+              >
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-md px-3 py-1.5 text-[var(--text-muted)] hover:text-[var(--text)]"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="rounded-md bg-accent-600 px-3 py-1.5 font-medium text-white hover:bg-accent-700"
+                >
+                  Get started
+                </Link>
+              </>
+            )}
+          </nav>
         </div>
+      </header>
+
+      <main className="mx-auto max-w-5xl px-5">
+        <section className="animate-in py-20 sm:py-28">
+          <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-accent-600 dark:text-accent-400">
+            $0.00 / month
+          </p>
+          <h1 className="mt-4 max-w-2xl text-[34px] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[46px]">
+            Dynamic QR codes, and the receipts showing what they actually cost.
+          </h1>
+          <p className="mt-5 max-w-xl text-[15px] leading-relaxed text-[var(--text-muted)]">
+            Print a code once. Change where it goes forever. See who scanned it, from what
+            network, in what city, at what time of day where they were standing.
+          </p>
+          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-[var(--text-muted)]">
+            The whole platform &mdash; edge redirects, Postgres, auth, SSL, custom domains,
+            analytics &mdash; runs on free tiers. That is the point of this project: the
+            incumbents charge thousands a year for it.
+          </p>
+
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link
+              href={user ? '/links' : '/signup'}
+              className="rounded-md bg-accent-600 px-4 py-2.5 text-[14px] font-medium text-white hover:bg-accent-700"
+            >
+              {user ? 'Open dashboard' : 'Create a free account'}
+            </Link>
+          </div>
+        </section>
+
+        <section className="grid gap-px overflow-hidden rounded-xl border border-[var(--border)] bg-[var(--border)] sm:grid-cols-3">
+          <Panel
+            title="Edge redirects"
+            body="A scan resolves at the nearest Cloudflare location from a warm cache, then the analytics write happens after the response. Telemetry never slows down a scan."
+          />
+          <Panel
+            title="Network-level analytics"
+            body="Carrier and ISP name, mobile versus broadband versus corporate, connection quality. Most paid tiers do not surface any of this."
+          />
+          <Panel
+            title="Honest about limits"
+            body="IP geolocation is approximate. iOS reports no device model. Edge caches take a minute to catch up. All of it is stated in the product, not buried."
+          />
+        </section>
+
+        <footer className="border-t border-[var(--border)] py-8 text-[12.5px] text-[var(--text-faint)]">
+          A demonstration project. Built on Cloudflare Workers and Supabase.
+        </footer>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
+  );
+}
+
+function Panel({ title, body }: { title: string; body: string }) {
+  return (
+    <div className="bg-[var(--bg)] p-6">
+      <h2 className="text-[14px] font-semibold tracking-tight">{title}</h2>
+      <p className="mt-2 text-[13px] leading-relaxed text-[var(--text-muted)]">{body}</p>
+    </div>
+  );
+}
+
+function Mark() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-[22px]" aria-hidden>
+      <rect x="1" y="1" width="9" height="9" rx="1.5" className="fill-none stroke-current" strokeWidth="2" />
+      <rect x="14" y="1" width="9" height="9" rx="1.5" className="fill-none stroke-current" strokeWidth="2" />
+      <rect x="1" y="14" width="9" height="9" rx="1.5" className="fill-none stroke-current" strokeWidth="2" />
+      <rect x="14.5" y="14.5" width="3.5" height="3.5" className="fill-accent-500" />
+      <rect x="19.5" y="19.5" width="3.5" height="3.5" className="fill-accent-500" />
+      <rect x="14.5" y="19.5" width="3.5" height="3.5" className="fill-current opacity-40" />
+      <rect x="19.5" y="14.5" width="3.5" height="3.5" className="fill-current opacity-40" />
+    </svg>
   );
 }

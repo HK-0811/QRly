@@ -1,26 +1,125 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+  qrify design tokens.
+
+  The visual language is deliberately technical rather than friendly-SaaS: this is
+  a project whose whole argument is "look at what this actually costs to build."
+  Tight type, real numbers set in tabular figures, restrained colour, and one
+  accent used only where something is genuinely live.
+*/
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', 'Cascadia Code', Menlo, monospace;
+
+  --color-ink-50: #f6f7f8;
+  --color-ink-100: #eceef1;
+  --color-ink-200: #d7dbe0;
+  --color-ink-300: #b4bbc4;
+  --color-ink-400: #8b95a1;
+  --color-ink-500: #6b7583;
+  --color-ink-600: #545d69;
+  --color-ink-700: #454c55;
+  --color-ink-800: #2b3038;
+  --color-ink-900: #1a1e24;
+  --color-ink-950: #101317;
+
+  --color-accent-400: #4ade9a;
+  --color-accent-500: #16b877;
+  --color-accent-600: #0d9663;
+  --color-accent-700: #0b7550;
+
+  --color-warn-400: #f5b544;
+  --color-warn-600: #b57708;
+
+  --color-danger-400: #f87171;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+:root {
+  --bg: #ffffff;
+  --bg-subtle: #f8f9fa;
+  --bg-raised: #ffffff;
+  --border: #e4e7eb;
+  --border-strong: #d0d5dc;
+  --text: #16191d;
+  --text-muted: #6b7583;
+  --text-faint: #949cab;
+  --shadow-card: 0 1px 2px rgb(16 19 23 / 0.04), 0 1px 3px rgb(16 19 23 / 0.06);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg: #0d0f12;
+    --bg-subtle: #14171b;
+    --bg-raised: #16191e;
+    --border: #262b32;
+    --border-strong: #343a43;
+    --text: #e8eaed;
+    --text-muted: #8b95a1;
+    --text-faint: #646c78;
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.2);
   }
 }
 
+* {
+  border-color: var(--border);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'cv02', 'cv03', 'cv04';
+}
+
+/* Numbers that change in place must not reflow the layout around them. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+::selection {
+  background: var(--color-accent-500);
+  color: #fff;
+}
+
+/* One focus treatment everywhere, visible on both themes. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent-500);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@keyframes qrify-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-in {
+  animation: qrify-fade-up 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
 }

@@ -9,7 +9,7 @@
  * service_role bypasses RLS entirely. Every function here is therefore trusted
  * code — the caller is responsible for scoping by user_id.
  */
-import type { Env } from '../types';
+import type { Env } from '../env';
 
 export class DbError extends Error {
   constructor(

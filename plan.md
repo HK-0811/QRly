@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–1 complete**
+> Last updated: 2026-08-29 · Status: **phases 0–2 complete**
 
 ---
 
@@ -105,22 +105,29 @@ edited migration), `tools/verify-rls.mjs`, `tools/reset-db.mjs`, `tools/query.mj
 
 ---
 
-## Phase 2 — Link creation · **M**
+## Phase 2 — Link creation · **M** · ✅ **complete**
 
 **Goal:** a signed-in user can create, edit, disable, and delete links.
 
-- [ ] Supabase Auth: signup, login, logout, session persistence, password reset
-- [ ] Protected dashboard layout + route guards
-- [ ] Worker: JWT verification middleware
-- [ ] `POST /api/links` · `PATCH /api/links/:id` · `DELETE /api/links/:id`
-- [ ] Slug generator, reserved-word list, collision retry via unique constraint (no pre-check — it races)
-- [ ] URL validation: scheme allow-list, private/loopback/link-local IP block
-- [ ] Links list, create form, edit form, active toggle
-- [ ] Copy-to-clipboard for the short URL
+- [x] Supabase Auth: signup, login, logout, session persistence, password reset, email callback
+- [x] Protected dashboard layout, middleware session refresh, route guards
+- [x] Worker JWT middleware — `jose` + remote JWKS, **algorithm pinned to ES256** so the HS256 `anon`/`service_role` API keys can never authenticate as a user
+- [x] `POST /api/links` · `PATCH /api/links/:id` · `DELETE /api/links/:id`
+- [x] Slug generator (crypto random, no ambiguous glyphs), 60-word reserved list, collision retry on the unique constraint
+- [x] URL validation: scheme allow-list; private, loopback, link-local, CGNAT and metadata addresses blocked, **including their decimal, octal, hex and IPv4-mapped-IPv6 spellings**; embedded credentials blocked
+- [x] Links list, create dialog, edit dialog, active toggle, filter
+- [x] Copy-to-clipboard with an execCommand fallback for non-secure origins
+- [x] Delete guard: a link with QR codes needs explicit confirmation, and offers "turn off instead"
 
-**Acceptance:** full CRUD works through the UI. Invalid schemes (`javascript:`) and
-private IPs are rejected with a clear message. A second account cannot see or modify the
-first account's links.
+**Acceptance — met.** 38 unit tests, plus `tools/test-api.mjs` running **46 end-to-end
+checks** against the live Worker and the real Supabase project. Verified by hand in
+Chrome: sign in, create, toggle off, toggle on, and a rejected private-IP edit surfacing
+the Worker's message in the dialog. No console errors.
+
+**Note on the tenant boundary here:** inside the Worker, RLS is off — `service_role`
+bypasses it. Every ownership check in `routes/links.ts` is a hand-written `user_id=eq.`
+filter, so the cross-tenant cases in `test-api.mjs` are testing the code, not the
+database.
 
 ---
 

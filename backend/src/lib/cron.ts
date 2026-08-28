@@ -6,7 +6,7 @@
  * keep-alive is the only thing standing between this project and the Supabase
  * 7-day auto-pause.
  */
-import type { Env } from '../types';
+import type { Env } from '../env';
 import { insert, rpc, select, DbError } from './supabase';
 
 type JobResult = { ok: boolean; detail: Record<string, unknown> };
