@@ -16,6 +16,7 @@ import type { Env } from '../env';
 import { readLink, writeLink, writeMiss } from '../lib/kv';
 import { select, DbError } from '../lib/supabase';
 import { recordScan } from '../lib/analytics';
+import { REDIRECT_LIMIT, rateLimit } from '../lib/rate-limit';
 import {
   disabledPage,
   expiredPage,
@@ -161,6 +162,23 @@ redirect.get('/:slug', async (c) => {
   const started = Date.now();
   const slug = c.req.param('slug');
   const hostname = new URL(c.req.url).host.toLowerCase();
+
+  // Keyed on the client address and the slug together: two people behind one
+  // office NAT scanning two different posters should not throttle each other.
+  // The limiter is per-isolate — see lib/rate-limit.ts for what that does and
+  // does not buy.
+  const client = c.req.header('CF-Connecting-IP') ?? 'unknown';
+  const limited = rateLimit(`scan:${client}:${hostname}:${slug}`, REDIRECT_LIMIT);
+  if (!limited.allowed) {
+    return withTiming(
+      new Response('Too many requests', {
+        status: 429,
+        headers: { 'Retry-After': String(limited.retryAfter), 'Cache-Control': 'no-store' },
+      }),
+      started,
+      'rate-limited',
+    );
+  }
 
   let source: 'kv' | 'db' | 'kv-negative' = 'kv';
   let link: CachedLink | null = null;

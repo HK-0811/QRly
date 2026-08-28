@@ -89,7 +89,10 @@ export default async function HomePage() {
         </section>
 
         <footer className="border-t border-[var(--border)] py-8 text-[12.5px] text-[var(--text-faint)]">
-          A demonstration project. Built on Cloudflare Workers and Supabase.
+          A demonstration project. Built on Cloudflare Workers and Supabase.{' · '}
+          <Link href="/privacy" className="underline underline-offset-2 hover:text-[var(--text-muted)]">
+            Privacy
+          </Link>
         </footer>
       </main>
     </div>

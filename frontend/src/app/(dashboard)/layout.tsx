@@ -28,6 +28,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
             <NavLink href="/links">Links</NavLink>
             <NavLink href="/analytics">Analytics</NavLink>
             <NavLink href="/domains">Domains</NavLink>
+            <NavLink href="/settings">Settings</NavLink>
           </nav>
 
           <div className="ml-auto flex items-center gap-3">

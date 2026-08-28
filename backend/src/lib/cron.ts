@@ -7,7 +7,9 @@
  * 7-day auto-pause.
  */
 import type { Env } from '../env';
-import { insert, rpc, select, DbError } from './supabase';
+import type { Link } from '../types';
+import { insert, rpc, select, update, DbError } from './supabase';
+import { checkUrls } from './safe-browsing';
 
 type JobResult = { ok: boolean; detail: Record<string, unknown> };
 
@@ -78,14 +80,78 @@ export async function purgeRetention(env: Env): Promise<Record<string, unknown>>
 }
 
 /**
- * Weekly Safe Browsing re-check. Implemented in phase 9; the schedule is wired now
- * so the trigger exists and its absence in cron_runs is visible.
+ * Weekly Safe Browsing re-check.
+ *
+ * A destination that was clean when the link was created can be compromised
+ * later, and the printed code will keep pointing at it either way. This is the
+ * only thing that catches that.
+ *
+ * Batched: the API takes up to 500 URLs per request, which is what makes
+ * re-checking every link in the system affordable inside the free quota.
  */
 export async function recheckSafeBrowsing(env: Env): Promise<Record<string, unknown>> {
   if (!env.SAFE_BROWSING_API_KEY) {
     return { skipped: 'SAFE_BROWSING_API_KEY not configured' };
   }
-  return { skipped: 'not implemented until phase 9' };
+
+  const links = await select<
+    Pick<Link, 'id' | 'slug' | 'destination_url' | 'safe_browsing_status' | 'domain_id'>
+  >(env, 'links?select=id,slug,destination_url,safe_browsing_status,domain_id&limit=2000');
+
+  if (links.length === 0) return { checked: 0 };
+
+  const domains = await select<{ id: string; hostname: string; is_active: boolean }>(
+    env,
+    'domains?select=id,hostname,is_active',
+  );
+  const byId = new Map(domains.map((d) => [d.id, d]));
+
+  let flagged = 0;
+  let cleared = 0;
+  let checked = 0;
+
+  for (let i = 0; i < links.length; i += 400) {
+    const batch = links.slice(i, i + 400);
+    const verdicts = await checkUrls(env, batch.map((l) => l.destination_url));
+    checked += batch.length;
+
+    for (const link of batch) {
+      const verdict = verdicts.get(link.destination_url);
+      if (!verdict || verdict.status === 'unchecked') continue;
+      if (verdict.status === link.safe_browsing_status) continue;
+
+      const [updated] = await update<Link>(env, 'links', `id=eq.${link.id}`, {
+        safe_browsing_status: verdict.status,
+        safe_browsing_checked_at: new Date().toISOString(),
+      });
+
+      if (verdict.status === 'flagged') flagged++;
+      else cleared++;
+
+      // Push the new state into the cache so a newly flagged link starts serving
+      // the warning page immediately rather than after its TTL expires.
+      const domain = byId.get(link.domain_id);
+      if (updated && domain) {
+        await env.LINKS_KV.put(
+          `link:${domain.hostname.toLowerCase()}:${updated.slug}`,
+          JSON.stringify({
+            id: updated.id,
+            user_id: updated.user_id,
+            domain_id: updated.domain_id,
+            qr_id: null,
+            destination_url: updated.destination_url,
+            is_active: updated.is_active,
+            expires_at: updated.expires_at,
+            safe_browsing_status: updated.safe_browsing_status,
+            domain_active: domain.is_active,
+          }),
+          { expirationTtl: 60 },
+        ).catch((err) => console.error('kv write during rescreen', err));
+      }
+    }
+  }
+
+  return { checked, newly_flagged: flagged, cleared };
 }
 
 const DAILY = '0 0 * * *';

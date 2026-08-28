@@ -10,6 +10,7 @@
  * the old URL until the TTL expired, with nothing to invalidate it.
  */
 import { Hono } from 'hono';
+import { createMiddleware } from 'hono/factory';
 import type { CachedLink, CreateLinkBody, Domain, Link, UpdateLinkBody } from '../types';
 import type { Env } from '../env';
 import { requireAuth, type AuthVariables } from '../lib/auth';
@@ -17,6 +18,8 @@ import { selectOne, insert, update, remove, DbError } from '../lib/supabase';
 import { validateDestination } from '../lib/url-safety';
 import { generateSlug, validateCustomSlug } from '../lib/slug';
 import { invalidateQuietly } from '../lib/kv';
+import { checkUrl } from '../lib/safe-browsing';
+import { API_WRITE_LIMIT, rateLimit, rateLimitHeaders } from '../lib/rate-limit';
 
 type Ctx = { Bindings: Env; Variables: AuthVariables };
 
@@ -27,6 +30,28 @@ export const links = new Hono<Ctx>();
 // unauthenticated.
 links.use('/links', requireAuth);
 links.use('/links/*', requireAuth);
+
+// Keyed on the account, after authentication, so one compromised session cannot
+// exhaust the budget for everybody behind the same NAT.
+const limitWrites = createMiddleware<Ctx>(async (c, next) => {
+  if (c.req.method === 'GET' || c.req.method === 'OPTIONS') return next();
+
+  const result = rateLimit(`api:${c.get('user').id}`, API_WRITE_LIMIT);
+  if (!result.allowed) {
+    return c.json(
+      {
+        error: 'rate_limited',
+        message: `Too many changes at once. Try again in ${result.retryAfter} seconds.`,
+      },
+      429,
+      rateLimitHeaders(API_WRITE_LIMIT, result),
+    );
+  }
+  await next();
+});
+
+links.use('/links', limitWrites);
+links.use('/links/*', limitWrites);
 
 const SLUG_RETRY_LIMIT = 5;
 
@@ -42,6 +67,35 @@ function toCached(link: Link, domainActive: boolean, qrId: string | null = null)
     safe_browsing_status: link.safe_browsing_status,
     domain_active: domainActive,
   };
+}
+
+/**
+ * Screen a destination and persist the verdict, updating the cache so a flagged
+ * link starts serving the warning page without waiting for its TTL.
+ *
+ * Always called from waitUntil. Never on the request path.
+ */
+async function screenLink(
+  env: Env,
+  link: Link,
+  hostname: string,
+  domainActive: boolean,
+): Promise<void> {
+  const verdict = await checkUrl(env, link.destination_url);
+  if (verdict.status === 'unchecked') return; // leave it for the weekly sweep
+
+  const [updated] = await update<Link>(env, 'links', `id=eq.${link.id}`, {
+    safe_browsing_status: verdict.status,
+    safe_browsing_checked_at: new Date().toISOString(),
+  });
+
+  if (updated) {
+    await invalidateQuietly(env, hostname, updated.slug, toCached(updated, domainActive));
+  }
+
+  if (verdict.status === 'flagged') {
+    console.warn(`link ${link.id} flagged by Safe Browsing: ${verdict.threats.join(', ')}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -147,6 +201,16 @@ links.post('/links', async (c) => {
         domain.hostname,
         created.slug,
         toCached(created, domain.is_active),
+      );
+
+      // Safe Browsing runs after the response is committed. It is a third-party
+      // network call, and link creation must not depend on Google being up. A
+      // link created a second before the verdict arrives is served as unchecked,
+      // which is what it is.
+      c.executionCtx.waitUntil(
+        screenLink(c.env, created, domain.hostname, domain.is_active).catch((err) =>
+          console.error('safe browsing screen failed', err),
+        ),
       );
 
       return c.json({ link: created, hostname: domain.hostname, short_url: `https://${domain.hostname}/${created.slug}` }, 201);
@@ -260,6 +324,15 @@ links.patch('/links/:id', async (c) => {
       updated.slug,
       toCached(updated, domain.is_active),
     );
+
+    // The destination changed, so the previous verdict was about a different URL.
+    if (patch.destination_url !== undefined) {
+      c.executionCtx.waitUntil(
+        screenLink(c.env, updated, domain.hostname, domain.is_active).catch((err) =>
+          console.error('safe browsing rescreen failed', err),
+        ),
+      );
+    }
   }
 
   return c.json({

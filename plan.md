@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–6 complete**
+> Last updated: 2026-08-29 · Status: **phases 0–6 and 9 complete; 7–8 blocked on a domain**
 
 ---
 
@@ -310,22 +310,38 @@ a validation step.
 
 ---
 
-## Phase 9 — Security, privacy, abuse · **M**
+## Phase 9 — Security, privacy, abuse · **M** · ✅ **complete** (one item gated)
 
 **Goal:** safe to put in front of strangers on the public internet.
 
-- [ ] Google Safe Browsing on link create + weekly re-check cron
-- [ ] Flagged links serve the warning page — **the printed QR keeps resolving**
-- [ ] Rate limiting: per-IP-hash and per-link
-- [ ] Retention purge cron honouring each account's `retention_days`
-- [ ] Retention setting in account UI
-- [ ] Privacy policy page describing exactly what is collected and what is not
-- [ ] **Secrets audit** — confirm `service_role` appears in no client bundle
-- [ ] Verify the full threat table in `architecture.md` §11
+- [x] Safe Browsing client, batched, called from `waitUntil` on create and on destination change, plus a weekly re-check that pushes new verdicts straight into the cache
+- [x] Flagged links serve the warning page — the printed QR keeps resolving
+- [x] Rate limiting on writes (per account) and on redirects (per client + hostname + slug)
+- [x] Retention purge honouring each account's `retention_days`
+- [x] Retention setting in the account UI, with the consequence stated plainly
+- [x] Privacy page listing every field collected, every field deliberately not collected, and what GPC actually changes
+- [x] Secrets audit, automated in `tools/test-security.mjs`
+- [x] Threat table in `architecture.md` §11 verified
 
-**Acceptance:** a known-malicious test URL is flagged and serves the warning page.
-Rate limits trigger under a scripted burst. Purge deletes events past the retention
-window. `grep` the built client bundle for the service key and find nothing.
+**Acceptance — met, with one item gated on a key.** 12 new unit tests and **20 end-to-end
+checks**: an 80-write burst throttles while early writes succeed; a 200-scan burst
+throttles one client without affecting another; the purge deletes past the window and
+spares what is inside it; a flagged link serves the warning page and does not
+auto-redirect. The secrets audit greps every shipped build artefact and confirms the
+`service_role` key and the visitor-hash pepper appear in none of them, while the anon key
+does — the second assertion catching the opposite mistake.
+
+**Gated:** no `SAFE_BROWSING_API_KEY` yet, so the client reports `unchecked` rather than
+pretending to have looked. That distinction is tested. Obtaining the key is free but
+needs a Google Cloud project.
+
+**On rate limiting, honestly:** the counters live in one Worker isolate's memory, so the
+limit is per-isolate rather than global. A distributed flood is not stopped by this. A
+correct global limiter needs Durable Objects, which require Workers Paid, and this
+project's whole premise is zero cost. The real defence for a public deployment is
+Cloudflare's own rate-limiting rule — the free plan includes one — configured on the
+zone, which needs a domain and therefore lands with phase 7. The limitation is written
+into `lib/rate-limit.ts` rather than left for someone to discover.
 
 ---
 
