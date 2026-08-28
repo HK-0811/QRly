@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–4 complete**
+> Last updated: 2026-08-29 · Status: **phases 0–5 complete**
 
 ---
 
@@ -197,24 +197,39 @@ absorb print quality, glare and a crumpled poster.
 
 ---
 
-## Phase 5 — Analytics collection · **M**
+## Phase 5 — Analytics collection · **M** · ✅ **complete**
 
 **Goal:** every scan writes a rich, privacy-safe event without slowing the redirect.
 
-- [ ] `geo.ts` — `request.cf` extraction
-- [ ] `ua.ts` — user-agent parsing to device / OS / browser
-- [ ] `asn.ts` — ASN → `network_type` classification
-- [ ] `bot.ts` — bot and link-preview-fetcher detection
-- [ ] `hash.ts` — visitor hash + daily salt rotation cron
-- [ ] `analytics.ts` — enrichment and insert under `ctx.waitUntil()`
-- [ ] Local hour / day-of-week derived from the scanner's timezone
-- [ ] `is_first_scan` via conditional insert (no read-before-write)
-- [ ] Honour `Sec-GPC` / `DNT`
+- [x] `geo.ts` — `request.cf` extraction, with implausible RTT values discarded as measurement artefacts
+- [x] `ua.ts` — device / OS / browser, language preferences ordered by q-value, UTM and referrer
+- [x] `asn.ts` — organisation name → `network_type`, returning `unknown` rather than guessing
+- [x] `bot.ts` — link-preview fetchers named individually, crawlers, automation, prefetch, non-navigation requests, datacentre origin
+- [x] `hash.ts` — daily-rotating salted hash, read through KV
+- [x] `analytics.ts` — enrichment and insert under `ctx.waitUntil()`
+- [x] Local hour and weekday **in the scanner's timezone**, not the account owner's
+- [x] `is_first_scan` resolved by a BEFORE INSERT trigger — one round trip, and race-free in a way a read-then-insert is not
+- [x] `Sec-GPC` and `DNT` honoured
 
-**Acceptance:** scan from a phone on mobile data, from desktop wifi, and via a WhatsApp
-share. Inspect the rows: geo, network, and device fields populated; carrier name present
-on mobile; the WhatsApp fetch flagged as a bot; **no raw IP stored anywhere**. Redirect
-latency unchanged from phase 3.
+**Acceptance — met.** 48 unit tests plus **42 end-to-end checks** driving real scans at
+the running Worker and reading back the stored rows. Verified: Android reports its real
+model and iOS does not; carrier name and `network_type` populated from `asOrganization`;
+WhatsApp, Googlebot and curl each flagged with their own reason while a real browser is
+not; **no raw IP anywhere in the row**; repeat visits resolve first-versus-returning
+correctly and eight concurrent scans produce at most one "first". Redirect latency
+unchanged at p50 3 ms — and separately proven to be off the critical path by measuring
+it against a live Supabase round trip.
+
+**Two defects the tests caught.** Telegram's real user agent is
+`TelegramBot (like TwitterBot)`, so every Telegram share was being attributed to Twitter
+until the pattern order was fixed. And `waitUntil` inserts land out of order, which the
+first version of the harness assumed they would not.
+
+**What GPC actually does here,** because "honoured" is doing a lot of work in most privacy
+policies: the scan is still counted, but with no visitor hash (so no unique-visitor
+attribution and no first-versus-returning), no postal code, no latitude or longitude, and
+no raw user-agent string. What remains is aggregate by construction. The visible
+consequence is that unique-visitor totals under-count, and phase 6 has to say so.
 
 ---
 

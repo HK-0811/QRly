@@ -15,6 +15,7 @@ import type { CachedLink, Link, SafeBrowsingStatus } from '../types';
 import type { Env } from '../env';
 import { readLink, writeLink, writeMiss } from '../lib/kv';
 import { select, DbError } from '../lib/supabase';
+import { recordScan } from '../lib/analytics';
 import {
   disabledPage,
   expiredPage,
@@ -205,6 +206,19 @@ redirect.get('/:slug', async (c) => {
   }
 
   const verdict = evaluate(link);
+
+  // Telemetry is registered before the response is returned but runs after it is
+  // sent. A scan is never blocked by an analytics write, and a failed write is
+  // swallowed inside recordScan — the person already got where they were going.
+  //
+  // Only outcomes that resolved to a real link are recorded. A 404 has no link to
+  // attribute to, and counting an unknown-slug probe as a scan would let anyone
+  // inflate someone else's numbers by walking the namespace.
+  if (link !== null && verdict.kind !== 'not_found') {
+    c.executionCtx.waitUntil(
+      recordScan({ request: c.req.raw, env: c.env, link, hostname }),
+    );
+  }
 
   switch (verdict.kind) {
     case 'redirect':
