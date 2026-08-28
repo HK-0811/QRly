@@ -615,11 +615,18 @@ only the first two above may ever carry that prefix.
 
 ## 15. Open design questions
 
-1. **Supabase JWT signing method** — ES256/JWKS or HS256 shared secret? Determines the
-   Worker's auth middleware. Confirm in phase 1.
-2. **Postgres connection method** — direct `db.<ref>` is IPv4-deprecated; the pooler
-   string may be required for migrations. Confirm in phase 1.
-3. **Next.js deploy target** — OpenNext Cloudflare adapter (recommended) vs
-   `next-on-pages` (maintenance mode).
+1. ~~**Supabase JWT signing method**~~ — **resolved: ES256 via JWKS.** The endpoint at
+   `/auth/v1/.well-known/jwks.json` serves an EC P-256 key, and real user tokens carry
+   `alg: ES256` with a `kid`. The Worker verifies with `jose` against a cached remote
+   JWKS. Note the *legacy API keys* (`anon`, `service_role`) are still HS256 JWTs — they
+   are API keys, not user tokens, and must not be run through the same verifier.
+2. ~~**Postgres connection method**~~ — **resolved: the session pooler is required.**
+   `db.qragyngjqlizazdkaowa.supabase.co` resolves to an AAAA record only and is
+   unreachable from an IPv4 host. Migrations run against
+   `aws-0-ap-northeast-1.pooler.supabase.com:5432` as `postgres.<ref>`. The password
+   contains a literal `@` and must be percent-encoded as `%40` in the URI. The pooler
+   also does not support prepared statements, so the client sets `prepare: false`.
+3. ~~**Next.js deploy target**~~ — **resolved: `@opennextjs/cloudflare`.** Configured in
+   `frontend/open-next.config.ts` and `frontend/wrangler.jsonc`.
 4. **Map rendering library** — needs to be free, offline-capable, and not require an
-   API key, to keep the $0 claim intact.
+   API key, to keep the $0 claim intact. Decide in phase 6.

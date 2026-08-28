@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **not started**
+> Last updated: 2026-08-29 · Status: **phases 0–1 complete**
 
 ---
 
@@ -49,9 +49,10 @@ mechanism.
 
 | Gate | Needed before | Status |
 |---|---|---|
-| `.gitignore` before first commit | Phase 0 | ⚠️ **outstanding** — `.env` holds a `service_role` key |
-| Cloudflare account | Phase 0 deploy | ❓ not confirmed |
-| Next.js deploy target decision | Phase 0 | ❓ recommendation: OpenNext adapter |
+| `.gitignore` before first commit | Phase 0 | ✅ done — `.env`, `supabase.md`, `.dev.vars`, `.env.local` all ignored |
+| Next.js deploy target decision | Phase 0 | ✅ OpenNext Cloudflare adapter, configured |
+| Supabase pooler connection string | Phase 1 | ✅ obtained, migrations run against it |
+| Cloudflare account | Worker deploy | ⛔ **none yet — building local-only** |
 | Domain purchased + on Cloudflare | Phase 7 | ⛔ not purchased |
 | Google Safe Browsing API key | Phase 9 | ❓ free, needs a Google Cloud project |
 
@@ -59,42 +60,48 @@ Phases 0–6 and 9–10 need nothing beyond the Cloudflare account. Only 7 and 8
 
 ---
 
-## Phase 0 — Scaffold · **S**
+## Phase 0 — Scaffold · **S** · ✅ **complete**
 
 **Goal:** both apps run locally and the Worker is reachable on the public internet.
 
-- [ ] `git init`, and **`.gitignore` covering `.env`, `supabase.md`, `node_modules`, `.wrangler`, `.next`** — before any commit
-- [ ] `backend/`: TypeScript + Hono + Wrangler, `wrangler.toml`, hello-world route
-- [ ] `frontend/`: Next.js (App Router) + TypeScript + Tailwind
-- [ ] Decide and configure the Next.js deploy target
-- [ ] `supabase/migrations/` directory
-- [ ] `backend/src/types.ts` as the canonical shared type source
-- [ ] Deploy the Worker to `*.workers.dev`
+- [x] `git init`, and `.gitignore` covering `.env`, `supabase.md`, `.dev.vars`, `.env.local`, `node_modules`, `.wrangler`, `.next` — written before the first commit
+- [x] `backend/`: TypeScript + Hono + Wrangler 4, `wrangler.toml`, KV binding, `/api/health`
+- [x] `frontend/`: Next.js 15 App Router + TypeScript + Tailwind v4
+- [x] Deploy target configured — `@opennextjs/cloudflare` (`open-next.config.ts`, `wrangler.jsonc`)
+- [x] `supabase/migrations/` and `tools/` directories
+- [x] `backend/src/types.ts` as the canonical shared type source
+- [ ] Deploy the Worker to `*.workers.dev` — **deferred, no Cloudflare account yet**
 
-**Acceptance:** `wrangler dev` and `next dev` both serve locally; the deployed Worker
-responds over HTTPS at its `workers.dev` URL.
+**Acceptance:** `wrangler dev` serves `/api/health` on `:8787` and `next dev` serves on
+`:3000`; `tsc --noEmit` clean in both; 3 vitest tests pass. The public HTTPS deploy is
+the one item outstanding and is blocked only on a Cloudflare account.
 
 ---
 
-## Phase 1 — Database + Auth · **M**
+## Phase 1 — Database + Auth · **M** · ✅ **complete**
 
 **Goal:** schema live, RLS provably enforced, signup produces a usable account.
 
-- [ ] Resolve **open question 1** — Supabase JWT signing method (ES256/JWKS vs HS256)
-- [ ] Resolve **open question 2** — direct vs pooler Postgres connection for migrations
-- [ ] Migration: `profiles`, `domains`, `links`, `qr_codes`, `scan_events`, `daily_salts`
-- [ ] All indexes from `architecture.md` §5.3
-- [ ] RLS policies on every table
-- [ ] Trigger: auto-insert `profiles` row on `auth.users` insert
-- [ ] Seed the default platform domain row (the `workers.dev` hostname for now)
-- [ ] Cron: daily Supabase keep-alive ping — **prevents the 7-day auto-pause**
+- [x] **Open question 1 resolved** — ES256 via JWKS (see `architecture.md` §15)
+- [x] **Open question 2 resolved** — session pooler required; direct host is IPv6-only
+- [x] Migration `0001_schema.sql`: `profiles`, `domains`, `links`, `qr_codes`, `scan_events`, `daily_salts`
+- [x] All indexes from `architecture.md` §5.3, plus a partial index for the visitor hash
+- [x] Migration `0002`: `updated_at`, profile provisioning, and immutability guards on `slug`, `domain_id` and `locked_domain_id`
+- [x] Migration `0003`: RLS on every table, `force row level security` everywhere
+- [x] Migration `0004`: platform domain seed + first daily salt
+- [x] Migration `0005`: `cron_runs` audit trail
+- [x] Cron: daily keep-alive, salt rotation, retention purge; weekly Safe Browsing slot
 
-**Acceptance:** migration applies clean from scratch. Signing up creates a `profiles`
-row. **RLS is verified adversarially** — with user A's JWT, querying user B's links
-returns zero rows, not an error. Cron fires and the ping lands.
+**Acceptance — met.** `tools/reset-db.mjs` drops everything and all five migrations
+reapply clean from scratch. `tools/verify-rls.mjs` creates two real accounts, signs both
+in, and runs **34 adversarial checks — all pass**: cross-tenant reads return zero rows
+rather than errors, cross-tenant writes affect zero rows, forged `user_id` inserts are
+rejected, `scan_events` cannot be fabricated from a browser JWT, `daily_salts` is
+unreachable, and the security-definer functions are not executable by `authenticated`.
+The cron fires locally against the real project and lands four `cron_runs` rows.
 
-**Risk:** RLS that looks correct but isn't is the single most dangerous silent failure
-in this build. It gets tested with two real accounts, not assumed.
+**Tooling added:** `tools/migrate.mjs` (checksummed, forward-only, refuses to run an
+edited migration), `tools/verify-rls.mjs`, `tools/reset-db.mjs`, `tools/query.mjs`.
 
 ---
 
