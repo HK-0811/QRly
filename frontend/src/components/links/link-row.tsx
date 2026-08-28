@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { api, ApiError } from '@/lib/api';
 import type { LinkWithDomain } from '@/lib/types';
 import { Badge, Button, cn } from '@/components/ui';
@@ -102,6 +103,11 @@ export function LinkRow({
           <Button size="sm" variant="ghost" onClick={toggle} disabled={busy}>
             {link.is_active ? 'Turn off' : 'Turn on'}
           </Button>
+          <Link href={`/links/${link.id}`}>
+            <Button size="sm" variant="ghost" disabled={busy}>
+              QR code
+            </Button>
+          </Link>
           <Button size="sm" variant="ghost" onClick={onEdit} disabled={busy}>
             Edit
           </Button>

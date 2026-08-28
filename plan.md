@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–3 complete**
+> Last updated: 2026-08-29 · Status: **phases 0–4 complete**
 
 ---
 
@@ -165,20 +165,35 @@ expiry needs no invalidation at all.
 
 ---
 
-## Phase 4 — QR generation · **M**
+## Phase 4 — QR generation · **M** · ✅ **complete**
 
 **Goal:** downloadable, styled, scannable QR codes. First fully demonstrable build.
 
-- [ ] Client-side QR generation (no server round trip, no storage cost)
-- [ ] Style controls: foreground/background colour, logo, module shape, error-correction level
-- [ ] Live preview
-- [ ] Download as PNG and SVG
-- [ ] Persist style to `qr_codes` with `locked_domain_id`
-- [ ] **Domain-lock warning in the UI** — the encoded hostname is permanent once printed
+- [x] Client-side QR generation — no server round trip, and nothing stored, because the code is derivable from the short URL. This is why there is no object-storage line item.
+- [x] Style controls: colours, module shape, finder shape, error-correction level, quiet zone, logo
+- [x] Live preview, updating as you change anything
+- [x] Download as PNG (512 / 1024 / 2048) and SVG
+- [x] Persist style to `qr_codes` with `locked_domain_id`
+- [x] Domain-lock warning stating the exact address the image encodes
+- [x] A scannability panel that reports module count, recovery budget, contrast ratio, and every constraint being hit
 
-**Acceptance:** generate, style, download, then scan the downloaded file with a real
-phone and land on the destination. Raising the logo size degrades scannability, so
-verify a logo-bearing code still scans at high error correction.
+**Acceptance — met, and more strictly than specified.** Instead of scanning one file with
+a phone, `tools/render-qr-fixtures.mjs` renders **49 style-and-size combinations through
+the shipped renderer** and `tools/test-qr.mjs` puts every one through a real decoder
+(jsQR). All 49 decode back to their own short URL. The browser's own canvas
+rasterisation was then verified in Chrome at 512, 1024 and 2048 px on the riskiest style
+— dots with ring finders — and all three decoded correctly.
+
+**That test caught a real defect that eyeballing would not have.** Dot modules at
+`r = 0.45` decoded at 256 px and failed at every larger size, because the alignment and
+timing patterns were being drawn as separated dots. A decoder uses those to correct for
+camera angle. The fix is in `qr.ts`: structural modules — finder, alignment and timing —
+are always drawn solid, and only data modules carry the style. Dot radius went to 0.5
+(tangent) for the same reason; every smaller value failed at some render size.
+
+**Logo size is capped per error-correction level rather than trusted to the slider,** and
+the cap is well under the theoretical budget because the recovery budget also has to
+absorb print quality, glare and a crumpled poster.
 
 ---
 

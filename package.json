@@ -11,6 +11,9 @@
     "test:rls": "node tools/verify-rls.mjs"
   },
   "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "jsqr": "^1.4.0",
+    "pngjs": "^7.0.0",
     "postgres": "^3.4.5"
   }
 }
