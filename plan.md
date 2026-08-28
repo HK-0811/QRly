@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–2 complete**
+> Last updated: 2026-08-29 · Status: **phases 0–3 complete**
 
 ---
 
@@ -131,26 +131,37 @@ database.
 
 ---
 
-## Phase 3 — Redirect engine · **M**
+## Phase 3 — Redirect engine · **M** · ✅ **complete**
 
 **Goal:** the core product. Fast, cached, correct.
 
-- [ ] Hostname + slug parsing
-- [ ] KV read-through cache, plus the `null` sentinel for unknown slugs
-- [ ] Validation chain in order: hostname active → slug resolves → `is_active` → not expired → not flagged
-- [ ] `302` to destination
-- [ ] Branded 404 page and flagged-link warning page — **never a bare error**
-- [ ] Write-through cache invalidation wired into the phase 2 write endpoints
-- [ ] **Dashboard copy stating edits propagate within ~60s** (KV eventual consistency)
-- [ ] Latency measurement
+- [x] Hostname + slug parsing, with the hostname resolved against `domains` first
+- [x] KV read-through cache, plus the `null` sentinel for unknown slugs
+- [x] Validation chain in order: hostname active → slug resolves → domain still active → `is_active` → not expired → not flagged
+- [x] `302` to destination — never `301`, which the scanner's browser would cache forever
+- [x] Branded pages for **every** failure: not found, turned off, expired, flagged, and service-unavailable
+- [x] Write-through cache invalidation wired into the phase 2 write endpoints
+- [x] Dashboard copy stating edits propagate within ~60s, in the edit dialog itself
+- [x] `Server-Timing` on every response, and a measured latency run in `tools/test-redirect.mjs`
+- [x] `robots.txt` disallowing crawlers, `favicon.ico` → 204, branded page at the bare hostname
+- [x] `Referrer-Policy: no-referrer` so the short URL never leaks into the destination's analytics
 
-**Acceptance:** visiting a slug 302s correctly. Editing a destination changes the target
-within the propagation window. Disabled, expired, and unknown slugs each render their
-correct page. Warm-cache p50 measured **under 20ms**.
+**Acceptance — met.** 10 unit tests on the validation chain plus **34 end-to-end checks**
+against the live Worker, KV and Postgres. Warm-cache resolve measured at **p50 3 ms,
+p95 4 ms** (local Miniflare KV — directionally right, not a production number). Disabled,
+expired, flagged, deleted and unknown slugs each render their own page, verified in a
+browser.
 
-**Risk:** the 60-second KV propagation window. If someone edits a URL, immediately
-scans, and gets the old page with no explanation, the demo reads as broken. The UI copy
-is not optional polish here — it's part of the deliverable.
+**A hostname allow-list was added that the design did not specify.** On a cache miss the
+Worker checks the request hostname against a 5-minute cached set of active domains before
+touching Postgres. Without it, a flood of requests carrying random `Host` values would
+each write a distinct negative-cache sentinel and exhaust the free tier's 1,000 KV writes
+per day. It also means a spoofed `Host` is refused without a database round trip.
+
+**Two things the design specified that reality would not allow, both documented in code:**
+KV rejects any `expirationTtl` below 60s, so the negative cache is 60s and not the
+specified 30s; and a link's expiry is evaluated at read time from the cached record, so
+expiry needs no invalidation at all.
 
 ---
 
