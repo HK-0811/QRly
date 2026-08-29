@@ -1,9 +1,9 @@
 {
-  "name": "qrify",
+  "name": "qrly",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Operational tooling for qrify. The apps live in backend/ and frontend/.",
+  "description": "Operational tooling for QRly. The apps live in backend/ and frontend/.",
   "scripts": {
     "migrate": "node tools/migrate.mjs",
     "migrate:status": "node tools/migrate.mjs --status",

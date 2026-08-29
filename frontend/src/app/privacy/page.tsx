@@ -4,7 +4,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Privacy',
   description:
-    'Exactly what qrify records when a QR code is scanned, exactly what it does not, and why.',
+    'Exactly what QRly records when a QR code is scanned, exactly what it does not, and why.',
 };
 
 /**
@@ -22,7 +22,7 @@ export default function PrivacyPage() {
       <header className="border-b border-[var(--border)]">
         <div className="mx-auto flex h-14 max-w-3xl items-center px-5">
           <Link href="/" className="text-[15px] font-semibold tracking-tight">
-            qrify
+            QRly
           </Link>
         </div>
       </header>
@@ -181,7 +181,7 @@ export default function PrivacyPage() {
 
         <footer className="mt-12 border-t border-[var(--border)] pt-6 text-[12.5px] text-[var(--text-faint)]">
           <Link href="/" className="underline underline-offset-2">
-            Back to qrify
+            Back to QRly
           </Link>
         </footer>
       </main>

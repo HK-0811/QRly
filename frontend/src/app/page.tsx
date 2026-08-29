@@ -15,7 +15,7 @@ export default async function HomePage() {
         <div className="mx-auto flex h-14 max-w-5xl items-center px-5">
           <Link href="/" className="flex items-center gap-2">
             <Mark />
-            <span className="text-[15px] font-semibold tracking-tight">qrify</span>
+            <span className="text-[15px] font-semibold tracking-tight">QRly</span>
           </Link>
           <nav className="ml-auto flex items-center gap-1 text-[13.5px]">
             {user ? (

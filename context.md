@@ -1,4 +1,4 @@
-# qrify — Project Context
+# QRly — Project Context
 
 > Single source of truth for decisions, scope, and architecture.
 > Last updated: 2026-08-29 · Status: **built.** Phases 0–6, 9 and 10 complete; 7–8 blocked on a domain.

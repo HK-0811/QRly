@@ -71,7 +71,7 @@ export async function checkUrls(
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        client: { clientId: 'qrify', clientVersion: '1.0.0' },
+        client: { clientId: 'qrly', clientVersion: '1.0.0' },
         threatInfo: {
           threatTypes: THREAT_TYPES,
           platformTypes: ['ANY_PLATFORM'],

@@ -326,7 +326,7 @@ const link: CachedLink = {
 };
 
 function scanRequest(headers: Record<string, string> = {}, cf?: Record<string, unknown>) {
-  const req = new Request('https://qrify.test/abc123?utm_source=poster', {
+  const req = new Request('https://qrly.test/abc123?utm_source=poster', {
     headers: {
       'User-Agent':
         'Mozilla/5.0 (Linux; Android 14; SM-S911B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
@@ -364,7 +364,7 @@ describe('scan event assembly', () => {
       request: scanRequest({}, CF),
       env,
       link,
-      hostname: 'qrify.test',
+      hostname: 'qrly.test',
       now: new Date('2026-06-01T12:00:00Z'),
     });
 
@@ -388,7 +388,7 @@ describe('scan event assembly', () => {
       request: scanRequest({}, CF),
       env,
       link,
-      hostname: 'qrify.test',
+      hostname: 'qrly.test',
     });
     expect(JSON.stringify(row)).not.toContain('203.0.113.7');
   });
@@ -396,7 +396,7 @@ describe('scan event assembly', () => {
   it('leaves is_first_scan null for the database trigger to resolve', async () => {
     // Deciding it in the Worker would be a read-before-write, and it races: two
     // edges could both see "not seen" and both claim to be first.
-    const row = await buildScanEvent({ request: scanRequest({}, CF), env, link, hostname: 'qrify.test' });
+    const row = await buildScanEvent({ request: scanRequest({}, CF), env, link, hostname: 'qrly.test' });
     expect(row.is_first_scan).toBeNull();
   });
 
@@ -405,7 +405,7 @@ describe('scan event assembly', () => {
       request: scanRequest({ 'User-Agent': 'WhatsApp/2.23.20.0 A' }, CF),
       env,
       link,
-      hostname: 'qrify.test',
+      hostname: 'qrly.test',
     });
     expect(row.is_bot).toBe(true);
     expect(row.bot_reason).toBe('Link preview: WhatsApp');
@@ -425,7 +425,7 @@ describe('scan event assembly', () => {
         request: scanRequest({ 'Sec-GPC': '1' }, CF),
         env,
         link,
-        hostname: 'qrify.test',
+        hostname: 'qrly.test',
       });
 
       expect(row.gpc).toBe(true);

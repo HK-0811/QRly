@@ -18,7 +18,7 @@ import type { CachedLink } from '../src/types';
  * lib/supabase.ts, not a mocked rejection at some convenient seam.
  */
 
-const DEAD_SUPABASE = 'https://qrify-supabase-is-down.invalid';
+const DEAD_SUPABASE = 'https://qrly-supabase-is-down.invalid';
 
 const link: CachedLink = {
   id: '11111111-1111-1111-1111-111111111111',
@@ -32,7 +32,7 @@ const link: CachedLink = {
   domain_active: true,
 };
 
-async function scan(slug: string, overrides: Partial<typeof env> = {}, host = 'qrify.test') {
+async function scan(slug: string, overrides: Partial<typeof env> = {}, host = 'qrly.test') {
   const request = new Request(`https://${host}/${slug}`, {
     headers: {
       'User-Agent':
@@ -61,17 +61,17 @@ describe('failure mode: Supabase down, cache warm', () => {
 
   it('still redirects — no printed code breaks', async () => {
     // This is the property architecture.md calls the best thing about the design.
-    await writeLink(env, 'qrify.test', 'poster', link);
+    await writeLink(env, 'qrly.test', 'poster', link);
 
     const res = await scan('poster', { SUPABASE_URL: DEAD_SUPABASE });
 
     expect(res.status).toBe(302);
     expect(res.headers.get('Location')).toBe('https://example.com/printed-poster');
-    expect(res.headers.get('X-Qrify-Source')).toBe('kv');
+    expect(res.headers.get('X-Qrly-Source')).toBe('kv');
   });
 
   it('drops the analytics write silently rather than failing the scan', async () => {
-    await writeLink(env, 'qrify.test', 'poster', link);
+    await writeLink(env, 'qrly.test', 'poster', link);
 
     // The insert runs in waitUntil against a dead host. waitOnExecutionContext
     // above would surface an unhandled rejection; a clean 302 means recordScan
@@ -81,7 +81,7 @@ describe('failure mode: Supabase down, cache warm', () => {
   });
 
   it('keeps serving a disabled link its own page, not a redirect', async () => {
-    await writeLink(env, 'qrify.test', 'off', { ...link, is_active: false });
+    await writeLink(env, 'qrly.test', 'off', { ...link, is_active: false });
     const res = await scan('off', { SUPABASE_URL: DEAD_SUPABASE });
     expect(res.status).toBe(404);
     expect(await res.text()).toContain('turned off');
@@ -90,17 +90,17 @@ describe('failure mode: Supabase down, cache warm', () => {
   it('keeps serving a flagged link its warning page', async () => {
     // The warning has to survive a database outage too: the alternative is
     // redirecting to a known-malicious page because Postgres was unreachable.
-    await writeLink(env, 'qrify.test', 'bad', { ...link, safe_browsing_status: 'flagged' });
+    await writeLink(env, 'qrly.test', 'bad', { ...link, safe_browsing_status: 'flagged' });
     const res = await scan('bad', { SUPABASE_URL: DEAD_SUPABASE });
     expect(res.status).toBe(200);
     expect(await res.text()).toContain('flagged as unsafe');
   });
 
   it('answers a known-unknown slug from the negative cache', async () => {
-    await writeMiss(env, 'qrify.test', 'ghost');
+    await writeMiss(env, 'qrly.test', 'ghost');
     const res = await scan('ghost', { SUPABASE_URL: DEAD_SUPABASE });
     expect(res.status).toBe(404);
-    expect(res.headers.get('X-Qrify-Source')).toBe('kv-negative');
+    expect(res.headers.get('X-Qrly-Source')).toBe('kv-negative');
   });
 });
 
@@ -117,7 +117,7 @@ describe('failure mode: Supabase down, cache cold', () => {
 
     expect(res.status).toBe(503);
     expect(res.headers.get('Retry-After')).toBe('30');
-    expect(res.headers.get('X-Qrify-Source')).toBe('db-down');
+    expect(res.headers.get('X-Qrly-Source')).toBe('db-down');
   });
 
   it('says the problem is ours, not the code the person scanned', async () => {
@@ -130,7 +130,7 @@ describe('failure mode: Supabase down, cache cold', () => {
     await scan('never-seen', { SUPABASE_URL: DEAD_SUPABASE });
     // If the outage wrote a negative sentinel, the slug would keep 404ing for a
     // minute after Postgres came back.
-    expect(await env.LINKS_KV.get(linkKey('qrify.test', 'never-seen'))).toBeNull();
+    expect(await env.LINKS_KV.get(linkKey('qrly.test', 'never-seen'))).toBeNull();
   });
 });
 
@@ -141,7 +141,7 @@ describe('failure mode: unhandled error', () => {
     // Every path that can plausibly fail now degrades on its own, which is the
     // point of the tests above. To exercise the top-level boundary itself we have
     // to break something that has no handler: a binding that throws on access.
-    const request = new Request('https://qrify.test/');
+    const request = new Request('https://qrly.test/');
     const ctx = createExecutionContext();
     const broken = new Proxy(
       { ...env },
@@ -163,7 +163,7 @@ describe('failure mode: unhandled error', () => {
   });
 
   it('returns JSON, not HTML, for /api callers', async () => {
-    const request = new Request('https://qrify.test/api/links', {
+    const request = new Request('https://qrly.test/api/links', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: 'Bearer not-a-token' },
       body: '{}',
@@ -196,7 +196,7 @@ describe('failure mode: KV unavailable', () => {
       getWithMetadata: async () => ({ value: null, metadata: null, cacheStatus: null }),
     } as unknown as KVNamespace;
 
-    const request = new Request('https://qrify.test/whatever');
+    const request = new Request('https://qrly.test/whatever');
     const ctx = createExecutionContext();
     const res = await worker.fetch(request, { ...env, LINKS_KV: flaky }, ctx);
 

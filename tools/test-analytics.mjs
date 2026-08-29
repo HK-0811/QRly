@@ -79,7 +79,7 @@ async function main() {
     throw new Error(`Worker is not running at ${API}. Start it with: cd backend && npm run dev`);
   }
 
-  const email = `an-${stamp}@qrify.test`;
+  const email = `an-${stamp}@qrly.test`;
   const password = `An1!${stamp}an`;
   const u = await admin('/auth/v1/admin/users', {
     method: 'POST',

@@ -21,7 +21,7 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="mx-auto flex h-14 max-w-6xl items-center gap-6 px-4 sm:px-6">
           <Link href="/links" className="flex items-center gap-2 shrink-0">
             <Mark />
-            <span className="text-[15px] font-semibold tracking-tight">qrify</span>
+            <span className="text-[15px] font-semibold tracking-tight">QRly</span>
           </Link>
 
           <nav className="flex items-center gap-0.5">

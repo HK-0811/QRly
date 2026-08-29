@@ -7,7 +7,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="w-full max-w-[380px] animate-in">
         <Link href="/" className="mb-8 flex items-center gap-2">
           <Mark />
-          <span className="text-[15px] font-semibold tracking-tight">qrify</span>
+          <span className="text-[15px] font-semibold tracking-tight">QRly</span>
         </Link>
         {children}
       </div>

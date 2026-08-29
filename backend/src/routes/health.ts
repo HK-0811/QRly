@@ -12,7 +12,7 @@ export const health = new Hono<{ Bindings: Env }>();
 health.get('/health', (c) =>
   c.json({
     ok: true,
-    service: 'qrify',
+    service: 'qrly',
     environment: c.env.ENVIRONMENT,
     time: new Date().toISOString(),
   }),

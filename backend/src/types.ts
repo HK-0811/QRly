@@ -1,5 +1,5 @@
 /**
- * Canonical shared type source for qrify.
+ * Canonical shared type source for QRly.
  * The frontend imports from this file by relative path (see architecture.md §13).
  *
  * Deliberately free of any Cloudflare Workers types. The Worker's `Env` lives in

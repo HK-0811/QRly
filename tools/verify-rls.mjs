@@ -25,8 +25,8 @@ if (!SUPABASE_URL || !ANON || !SERVICE) {
 
 const stamp = Date.now();
 const USERS = [
-  { tag: 'A', email: `rls-a-${stamp}@qrify.test`, password: `Aa1!${stamp}aa` },
-  { tag: 'B', email: `rls-b-${stamp}@qrify.test`, password: `Bb1!${stamp}bb` },
+  { tag: 'A', email: `rls-a-${stamp}@qrly.test`, password: `Aa1!${stamp}aa` },
+  { tag: 'B', email: `rls-b-${stamp}@qrly.test`, password: `Bb1!${stamp}bb` },
 ];
 
 // ---------------------------------------------------------------------------

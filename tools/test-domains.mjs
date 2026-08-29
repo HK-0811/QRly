@@ -77,8 +77,8 @@ async function main() {
   }
 
   const users = [
-    { tag: 'A', email: `dom-a-${stamp}@qrify.test`, password: `Da1!${stamp}aa` },
-    { tag: 'B', email: `dom-b-${stamp}@qrify.test`, password: `Db1!${stamp}bb` },
+    { tag: 'A', email: `dom-a-${stamp}@qrly.test`, password: `Da1!${stamp}aa` },
+    { tag: 'B', email: `dom-b-${stamp}@qrly.test`, password: `Db1!${stamp}bb` },
   ];
 
   for (const u of users) {
@@ -125,7 +125,7 @@ async function main() {
   // -- registration --------------------------------------------------------
   console.log('\nregistration');
 
-  const hostname = `qr-${stamp}.qrify-test.example`;
+  const hostname = `qr-${stamp}.qrly-test.example`;
   const add = await api(A.jwt, 'POST', '/api/domains', { hostname });
   check('a subdomain is accepted', add.status === 201, JSON.stringify(add.body).slice(0, 200));
   if (add.body?.domain?.id) createdDomains.push(add.body.domain.id);

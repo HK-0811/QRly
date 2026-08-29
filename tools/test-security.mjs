@@ -144,7 +144,7 @@ async function main() {
     return;
   }
 
-  const email = `sec-${stamp}@qrify.test`;
+  const email = `sec-${stamp}@qrly.test`;
   const password = `Ss1!${stamp}ss`;
   const u = await admin('/auth/v1/admin/users', {
     method: 'POST',
@@ -262,7 +262,7 @@ async function main() {
   // A second account, because the burst above deliberately exhausted the first
   // one's write allowance — the invalidating PATCH below would be throttled by
   // the limiter this same test just proved works.
-  const email2 = `sec2-${stamp}@qrify.test`;
+  const email2 = `sec2-${stamp}@qrly.test`;
   const u2 = await admin('/auth/v1/admin/users', {
     method: 'POST',
     body: JSON.stringify({ email: email2, password, email_confirm: true }),

@@ -1,4 +1,4 @@
-# qrify — Architecture
+# QRly — Architecture
 
 > Technical design: components, flows, schema, caching, and failure behaviour.
 > Companion to `context.md`, which holds scope and product decisions. This document
@@ -566,7 +566,7 @@ Postgres, so the "KV down → slower, still correct" row was not true until it w
 ## 13. Repository layout
 
 ```
-qrify/
+QRly/
 ├── context.md
 ├── architecture.md
 ├── .env                       # local only, gitignored

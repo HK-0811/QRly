@@ -14,7 +14,7 @@
 import { connect } from './db.mjs';
 
 if (!process.argv.includes('--yes')) {
-  console.error('This DROPS ALL qrify TABLES AND DATA. Re-run with --yes to confirm.');
+  console.error('This DROPS ALL QRly TABLES AND DATA. Re-run with --yes to confirm.');
   process.exit(1);
 }
 

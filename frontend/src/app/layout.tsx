@@ -3,8 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'qrify — dynamic QR codes that cost nothing to run',
-    template: '%s · qrify',
+    default: 'QRly — dynamic QR codes that cost nothing to run',
+    template: '%s · QRly',
   },
   description:
     'Dynamic QR codes and short links with deep scan analytics, running entirely on free tiers. Print once, change the destination forever.',

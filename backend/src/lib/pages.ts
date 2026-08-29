@@ -67,12 +67,12 @@ const SHELL = (opts: {
       <rect x="14.5" y="14.5" width="3.5" height="3.5" fill="currentColor"/>
       <rect x="19.5" y="19.5" width="3.5" height="3.5" fill="currentColor"/>
     </svg>
-    <span>qrify</span>
+    <span>QRly</span>
   </div>
   <h1><span class="dot"></span>${opts.heading}</h1>
   ${opts.body}
   ${opts.extra ?? ''}
-  <footer>This short link is served by qrify.</footer>
+  <footer>This short link is served by QRly.</footer>
 </main>
 </body>
 </html>`;
@@ -221,7 +221,7 @@ export function errorPage(id: string): Response {
 export function rootPage(dashboardOrigin: string): Response {
   return new Response(
     SHELL({
-      title: 'qrify',
+      title: 'QRly',
       heading: 'Nothing to redirect to',
       accent: '#16b877',
       body:

@@ -50,7 +50,7 @@ const dns = (over: Partial<CnameResult> = {}): CnameResult => ({
   ...over,
 });
 
-const TARGET = 'qrify.example.workers.dev';
+const TARGET = 'qrly.example.workers.dev';
 
 describe('verification messages', () => {
   it('tells "no record yet" apart from "waiting for the certificate"', () => {
@@ -160,7 +160,7 @@ describe('real DNS resolution', () => {
   });
 
   it('reports a name that does not exist', async () => {
-    const result = await resolveCname('this-name-does-not-exist-qrify.invalid');
+    const result = await resolveCname('this-name-does-not-exist-qrly.invalid');
     expect(result.target).toBeNull();
     expect(result.hasAddressRecord).toBe(false);
   });

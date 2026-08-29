@@ -36,47 +36,47 @@ describe('kv cache', () => {
   it('distinguishes a miss from a known-nonexistent slug', async () => {
     // These are different states and the redirect path must treat them differently:
     // a miss means "ask Postgres", a negative hit means "we already asked, it is a 404".
-    expect(await readLink(env, 'qrify.test', 'nope')).toEqual({ hit: false });
+    expect(await readLink(env, 'qrly.test', 'nope')).toEqual({ hit: false });
 
-    await writeMiss(env, 'qrify.test', 'nope');
-    expect(await readLink(env, 'qrify.test', 'nope')).toEqual({ hit: true, link: null });
+    await writeMiss(env, 'qrly.test', 'nope');
+    expect(await readLink(env, 'qrly.test', 'nope')).toEqual({ hit: true, link: null });
   });
 
   it('round-trips a cached link', async () => {
-    await writeLink(env, 'qrify.test', 'abc', sample);
-    const result = await readLink(env, 'qrify.test', 'abc');
+    await writeLink(env, 'qrly.test', 'abc', sample);
+    const result = await readLink(env, 'qrly.test', 'abc');
     expect(result).toEqual({ hit: true, link: sample });
   });
 
   it('normalises hostname case but never slug case', async () => {
     // /Abc and /abc are two different links. Lower-casing the slug in the key
     // would silently merge them and serve one person another person's destination.
-    await writeLink(env, 'QRify.Test', 'Abc', sample);
-    expect((await readLink(env, 'qrify.test', 'Abc')).hit).toBe(true);
-    expect((await readLink(env, 'qrify.test', 'abc')).hit).toBe(false);
+    await writeLink(env, 'QRly.Test', 'Abc', sample);
+    expect((await readLink(env, 'qrly.test', 'Abc')).hit).toBe(true);
+    expect((await readLink(env, 'qrly.test', 'abc')).hit).toBe(false);
   });
 
   it('invalidation writes the new value rather than deleting it', async () => {
-    await writeLink(env, 'qrify.test', 'abc', sample);
+    await writeLink(env, 'qrly.test', 'abc', sample);
     const next = { ...sample, destination_url: 'https://example.com/two' };
-    await invalidate(env, 'qrify.test', 'abc', next);
+    await invalidate(env, 'qrly.test', 'abc', next);
 
     // Deleting would make every edge take a simultaneous miss and stampede
     // Postgres. The key must still hold a value.
-    const raw = await env.LINKS_KV.get(linkKey('qrify.test', 'abc'));
+    const raw = await env.LINKS_KV.get(linkKey('qrly.test', 'abc'));
     expect(raw).not.toBeNull();
     expect(JSON.parse(raw!).destination_url).toBe('https://example.com/two');
   });
 
   it('invalidating to null leaves the negative sentinel, not an empty key', async () => {
-    await writeLink(env, 'qrify.test', 'abc', sample);
-    await invalidate(env, 'qrify.test', 'abc', null);
-    expect(await readLink(env, 'qrify.test', 'abc')).toEqual({ hit: true, link: null });
+    await writeLink(env, 'qrly.test', 'abc', sample);
+    await invalidate(env, 'qrly.test', 'abc', null);
+    expect(await readLink(env, 'qrly.test', 'abc')).toEqual({ hit: true, link: null });
   });
 
   it('treats a corrupt entry as a miss so the request still succeeds via Postgres', async () => {
-    await env.LINKS_KV.put(linkKey('qrify.test', 'abc'), '{not json');
-    expect(await readLink(env, 'qrify.test', 'abc')).toEqual({ hit: false });
+    await env.LINKS_KV.put(linkKey('qrly.test', 'abc'), '{not json');
+    expect(await readLink(env, 'qrly.test', 'abc')).toEqual({ hit: false });
   });
 
   it('keeps links on different hostnames separate', async () => {
@@ -91,12 +91,12 @@ describe('negative-cache admission', () => {
   it('does not spend a KV write on the first sighting of an unknown slug', () => {
     // A bot walking random slugs is the reason. One write per probe would spend
     // the entire 1,000/day free-tier write budget on slugs nobody requests twice.
-    expect(shouldCacheMiss('qrify.test', 'random-1')).toBe(false);
+    expect(shouldCacheMiss('qrly.test', 'random-1')).toBe(false);
   });
 
   it('caches on the second sighting, because people retry a mistyped code', () => {
-    shouldCacheMiss('qrify.test', 'typo');
-    expect(shouldCacheMiss('qrify.test', 'typo')).toBe(true);
+    shouldCacheMiss('qrly.test', 'typo');
+    expect(shouldCacheMiss('qrly.test', 'typo')).toBe(true);
   });
 
   it('tracks hostname and slug together', () => {
@@ -106,16 +106,16 @@ describe('negative-cache admission', () => {
 
   it('costs nothing for a namespace walk', () => {
     const wouldWrite = Array.from({ length: 5_000 }, (_, i) =>
-      shouldCacheMiss('qrify.test', `walk-${i}`),
+      shouldCacheMiss('qrly.test', `walk-${i}`),
     ).filter(Boolean).length;
     expect(wouldWrite).toBe(0);
   });
 
   it('bounds its own memory', () => {
-    for (let i = 0; i < 25_000; i++) shouldCacheMiss('qrify.test', `flood-${i}`);
+    for (let i = 0; i < 25_000; i++) shouldCacheMiss('qrly.test', `flood-${i}`);
     // Still functioning after the eviction.
-    expect(shouldCacheMiss('qrify.test', 'after')).toBe(false);
-    expect(shouldCacheMiss('qrify.test', 'after')).toBe(true);
+    expect(shouldCacheMiss('qrly.test', 'after')).toBe(false);
+    expect(shouldCacheMiss('qrly.test', 'after')).toBe(true);
   });
 });
 

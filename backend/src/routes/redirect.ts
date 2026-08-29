@@ -295,6 +295,6 @@ redirect.get('/:slug', async (c) => {
 function withTiming(res: Response, started: number, source: string): Response {
   const headers = new Headers(res.headers);
   headers.set('Server-Timing', `resolve;dur=${Date.now() - started}`);
-  headers.set('X-Qrify-Source', source);
+  headers.set('X-Qrly-Source', source);
   return new Response(res.body, { status: res.status, headers });
 }

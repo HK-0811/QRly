@@ -12,7 +12,7 @@
 import crypto from 'node:crypto';
 import { env } from './db.mjs';
 
-const email = process.argv[2] ?? 'demo@qrify.test';
+const email = process.argv[2] ?? 'demo@qrly.test';
 const COUNT = Number(process.argv[3] ?? 4000);
 
 const H = {

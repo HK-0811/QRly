@@ -61,7 +61,7 @@ export default function CostPage() {
       <header className="border-b border-[var(--border)]">
         <div className="mx-auto flex h-14 max-w-4xl items-center px-5">
           <Link href="/" className="text-[15px] font-semibold tracking-tight">
-            qrify
+            QRly
           </Link>
           <Link
             href="/privacy"
@@ -103,7 +103,7 @@ export default function CostPage() {
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
                 <tr className="bg-accent-500/[0.06]">
-                  <td className="py-2.5 font-medium">qrify</td>
+                  <td className="py-2.5 font-medium">QRly</td>
                   <td className="py-2.5 text-[var(--text-muted)]">this</td>
                   <td className="tabular py-2.5 text-right font-semibold text-accent-600 dark:text-accent-400">
                     $0
@@ -214,7 +214,7 @@ export default function CostPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--border)]">
-                {pricing.qrify_ceilings.map((row) => (
+                {pricing.qrly_ceilings.map((row) => (
                   <tr key={row.service}>
                     <td className="py-2 font-medium">{row.service}</td>
                     <td className="py-2 text-[var(--text-muted)]">{row.free_limit}</td>
@@ -277,7 +277,7 @@ export default function CostPage() {
 
         <footer className="mt-12 border-t border-[var(--border)] py-8 text-[12.5px] text-[var(--text-faint)]">
           <Link href="/" className="underline underline-offset-2">
-            Back to qrify
+            Back to QRly
           </Link>
         </footer>
       </main>

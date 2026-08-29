@@ -1,4 +1,4 @@
-# qrify
+# QRly
 
 A dynamic QR code and short-link platform that runs entirely on free tiers.
 

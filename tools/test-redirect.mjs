@@ -69,7 +69,7 @@ async function scan(slug, init = {}) {
   return {
     status: res.status,
     location: res.headers.get('location'),
-    source: res.headers.get('x-qrify-source'),
+    source: res.headers.get('x-qrly-source'),
     timing: res.headers.get('server-timing'),
     cacheControl: res.headers.get('cache-control'),
     robots: res.headers.get('x-robots-tag'),
@@ -86,7 +86,7 @@ async function main() {
     throw new Error(`Worker is not running at ${API}. Start it with: cd backend && npm run dev`);
   }
 
-  const email = `redir-${stamp}@qrify.test`;
+  const email = `redir-${stamp}@qrly.test`;
   const password = `Rr1!${stamp}rr`;
   const u = await admin('/auth/v1/admin/users', {
     method: 'POST',
@@ -284,7 +284,7 @@ async function main() {
     redirect: 'manual',
     headers: { Host: 'evil.example' },
   });
-  const spoofSource = unregistered.headers.get('x-qrify-source');
+  const spoofSource = unregistered.headers.get('x-qrly-source');
   if (spoofSource === 'unknown-host') {
     check('an unregistered Host header is refused before Postgres is touched', true);
   } else {

@@ -8,7 +8,7 @@ export default defineConfig({
       miniflare: {
         bindings: {
           ENVIRONMENT: 'test',
-          PLATFORM_HOSTNAME: 'qrify.test',
+          PLATFORM_HOSTNAME: 'qrly.test',
           DASHBOARD_ORIGIN: 'http://localhost:3000',
           SUPABASE_URL: 'https://test.supabase.co',
           SUPABASE_SERVICE_KEY: 'test-service-key',

@@ -1,7 +1,7 @@
 @import 'tailwindcss';
 
 /*
-  qrify design tokens.
+  QRly design tokens.
 
   The visual language is deliberately technical rather than friendly-SaaS: this is
   a project whose whole argument is "look at what this actually costs to build."
@@ -98,7 +98,7 @@ body {
   border-radius: 4px;
 }
 
-@keyframes qrify-fade-up {
+@keyframes qrly-fade-up {
   from {
     opacity: 0;
     transform: translateY(4px);
@@ -110,7 +110,7 @@ body {
 }
 
 .animate-in {
-  animation: qrify-fade-up 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: qrly-fade-up 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @media (prefers-reduced-motion: reduce) {

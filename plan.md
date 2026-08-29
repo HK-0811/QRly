@@ -1,4 +1,4 @@
-# qrify — Implementation Plan
+# QRly — Implementation Plan
 
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).

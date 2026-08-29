@@ -89,8 +89,8 @@ async function main() {
   }
 
   const users = [
-    { tag: 'A', email: `api-a-${stamp}@qrify.test`, password: `Aa1!${stamp}aa` },
-    { tag: 'B', email: `api-b-${stamp}@qrify.test`, password: `Bb1!${stamp}bb` },
+    { tag: 'A', email: `api-a-${stamp}@qrly.test`, password: `Aa1!${stamp}aa` },
+    { tag: 'B', email: `api-b-${stamp}@qrly.test`, password: `Bb1!${stamp}bb` },
   ];
   for (const u of users) {
     const res = await admin('/auth/v1/admin/users', {

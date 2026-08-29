@@ -3,7 +3,7 @@ import { describe, it, expect } from 'vitest';
 import worker from '../src/index';
 
 async function call(path: string, init?: RequestInit) {
-  const req = new Request(`https://qrify.test${path}`, init);
+  const req = new Request(`https://qrly.test${path}`, init);
   const ctx = createExecutionContext();
   const res = await worker.fetch(req, env, ctx);
   await waitOnExecutionContext(ctx);
@@ -16,7 +16,7 @@ describe('phase 0 — scaffold', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.ok).toBe(true);
-    expect(body.service).toBe('qrify');
+    expect(body.service).toBe('qrly');
     expect(body.environment).toBe('test');
   });
 

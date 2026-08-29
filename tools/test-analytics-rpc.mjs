@@ -69,8 +69,8 @@ const created = [];
 
 async function main() {
   const users = [
-    { tag: 'A', email: `rpc-a-${stamp}@qrify.test`, password: `Aa1!${stamp}aa`, scans: 30 },
-    { tag: 'B', email: `rpc-b-${stamp}@qrify.test`, password: `Bb1!${stamp}bb`, scans: 7 },
+    { tag: 'A', email: `rpc-a-${stamp}@qrly.test`, password: `Aa1!${stamp}aa`, scans: 30 },
+    { tag: 'B', email: `rpc-b-${stamp}@qrly.test`, password: `Bb1!${stamp}bb`, scans: 7 },
   ];
 
   const domain = (await admin('/rest/v1/domains?hostname=eq.localhost%3A8787&select=id')).body[0];

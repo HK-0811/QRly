@@ -210,7 +210,7 @@
       ]
     }
   ],
-  "qrify_ceilings": [
+  "qrly_ceilings": [
     {
       "service": "Cloudflare Workers",
       "free_limit": "100,000 requests/day",
