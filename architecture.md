@@ -22,7 +22,7 @@ graph TB
         SaaS["Cloudflare for SaaS<br/>custom hostnames + SSL"]
     end
 
-    subgraph Pages["Cloudflare Pages / Workers"]
+    subgraph Dash["Cloudflare Workers"]
         Next["Next.js dashboard"]
     end
 
@@ -65,7 +65,7 @@ stale destinations.
 
 | Hostname | Serves | Runtime |
 |---|---|---|
-| `app.<domain>` | Next.js dashboard | Cloudflare Pages / Workers |
+| `app.<domain>` | Next.js dashboard | Cloudflare Worker, built by the OpenNext adapter |
 | `<domain>` | Redirect engine + `/api/*` | Cloudflare Worker |
 | `qr.client.com` (× N) | Redirect engine only | Same Worker, via Cloudflare for SaaS |
 | `*.workers.dev` | Everything, pre-domain | Same Worker |

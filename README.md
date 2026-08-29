@@ -18,6 +18,9 @@ Built for 1,000–2,000 users and deliberately not designed beyond that.
 
 ## What is here
 
+One repository. Two deployable Workers, the database migrations, and the tooling
+that tests all of it.
+
 | Path | What |
 |---|---|
 | `backend/` | Cloudflare Worker — redirect engine, privileged API, scheduled jobs (Hono) |
@@ -153,32 +156,107 @@ real Supabase project. They create their own accounts and delete them afterwards
 
 ## Deploying
 
-### Worker
+Two Workers, both out of this one repository:
+
+| Worker | Directory | Config | Serves |
+|---|---|---|---|
+| `qrly` | `backend/` | `wrangler.toml` | the redirect engine, the API, the cron jobs |
+| `qrly-dashboard` | `frontend/` | `wrangler.jsonc` | the Next.js dashboard |
+
+The dashboard is **not** on Cloudflare Pages. It is a Worker, built by the OpenNext
+Cloudflare adapter, because `next-on-pages` is effectively in maintenance — the reasoning
+is in `context.md`. Nothing here uses Pages.
+
+### 1. Before the first deploy
+
+Four things have to exist, and three of them are one-time.
 
 ```bash
 cd backend
-npx wrangler kv namespace create LINKS_KV     # put the id in wrangler.toml
-npx wrangler secret put SUPABASE_URL
-npx wrangler secret put SUPABASE_SERVICE_KEY
-npx wrangler secret put SUPABASE_ANON_KEY
-npx wrangler secret put SUPABASE_JWKS_URL
-npx wrangler secret put VISITOR_HASH_PEPPER   # 32+ random characters
-npx wrangler secret put SAFE_BROWSING_API_KEY # optional; unset means "unchecked"
-npx wrangler deploy
+npx wrangler kv namespace create LINKS_KV   # paste the id into [[env.production.kv_namespaces]]
 ```
 
-Then set `PLATFORM_HOSTNAME` in `wrangler.toml` to the hostname the Worker actually
-serves, and add a matching row to `domains` — the redirect path resolves the request
-hostname against that table before it will serve anything.
+Then fill in the two `REPLACE_ME` values in `[env.production.vars]` in
+`backend/wrangler.toml`: `PLATFORM_HOSTNAME` (the hostname this Worker serves —
+`qrly.<account>.workers.dev` at first) and `DASHBOARD_ORIGIN` (where the dashboard is
+served from, which is also the CORS allow-list for the API).
 
-### Dashboard
+Then set the Worker's secrets. These live on the Worker, not in the repository and not in
+the build — Workers Builds never sees them, and setting them once is enough:
 
 ```bash
-cd frontend
-npm run cf:deploy
+npx wrangler secret put SUPABASE_URL           --env production
+npx wrangler secret put SUPABASE_SERVICE_KEY   --env production
+npx wrangler secret put SUPABASE_ANON_KEY      --env production
+npx wrangler secret put SUPABASE_JWKS_URL      --env production
+npx wrangler secret put VISITOR_HASH_PEPPER    --env production   # 32+ random characters
+npx wrangler secret put SAFE_BROWSING_API_KEY  --env production   # optional; unset means "unchecked"
 ```
 
-### After deploying
+And finally: **add a row to `domains` matching `PLATFORM_HOSTNAME`.** The redirect path
+resolves the request hostname against that table before it will serve anything, so a
+deploy without this row 404s every scan. It is a **new migration** — migrations are
+checksummed and forward-only, so `0004_seed.sql` cannot be edited to add it.
+
+### 2. Continuous deployment (Workers Builds)
+
+Cloudflare deploys a monorepo by pointing two Worker projects at the same repository with
+a different **root directory** on each. Connect `HK-0811/QRly` twice, from
+**Workers & Pages → Create → Import a repository**, and set:
+
+**`qrly` — the backend**
+
+| Setting | Value |
+|---|---|
+| Root directory | `backend` |
+| Build command | *(leave empty — Wrangler bundles the Worker itself)* |
+| Deploy command | `npx wrangler deploy --env production` |
+| Non-production branch deploy command | `npx wrangler versions upload --env production` |
+| Build watch paths — include | `backend/*` |
+
+**`qrly-dashboard` — the frontend**
+
+| Setting | Value |
+|---|---|
+| Root directory | `frontend` |
+| Build command | `npx opennextjs-cloudflare build` |
+| Deploy command | `npx opennextjs-cloudflare deploy` |
+| Non-production branch deploy command | `npx opennextjs-cloudflare upload` |
+| Build watch paths — include | `frontend/*` |
+
+The build watch paths are what stop a change to the dashboard from redeploying the
+redirect engine, and the reverse. Without them every push rebuilds both.
+
+**The dashboard needs build variables, not secrets.** `NEXT_PUBLIC_*` values are compiled
+into the JavaScript at build time, so they must be set as **build variables** on the
+`qrly-dashboard` project. A build without them produces a dashboard that talks to
+`undefined`. Set all four, with the same meanings as `frontend/.env.local.example`:
+
+`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_API_URL`,
+`NEXT_PUBLIC_REDIRECT_ORIGIN` — the last two pointing at the deployed `qrly` Worker, not
+at `localhost:8787`.
+
+The anon key belongs in the browser bundle; that is what it is for, and RLS is what makes
+it safe. `tools/test-security.mjs` asserts it is present in the build and that the
+`service_role` key and the visitor-hash pepper are not.
+
+### 3. Deploying by hand
+
+The git integration is the normal path, but neither Worker depends on it:
+
+```bash
+cd backend  && npx wrangler deploy --env production
+cd frontend && npm run cf:deploy
+```
+
+`--env production` is not optional. `backend/wrangler.toml` keeps development values at
+the top level so `wrangler dev` and the test pool work with no arguments, and the real
+values in `[env.production]`. A bare `wrangler deploy` would publish
+`PLATFORM_HOSTNAME = "localhost:8787"`, which matches no row in `domains`, and every
+redirect would 404. Wrangler warns when the flag is missing — do not deploy past that
+warning.
+
+### 4. After deploying
 
 The daily cron is what keeps a free Supabase project from pausing after 7 days of
 inactivity — which would take the demo down exactly when somebody finally looks at it.

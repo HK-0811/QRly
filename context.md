@@ -39,7 +39,7 @@ Target size: **1,000–2,000 users.** Explicitly not designed beyond that.
 
 | Layer | Choice | Note |
 |---|---|---|
-| Dashboard | Next.js + TypeScript | Deploy target TBD: OpenNext adapter recommended over `next-on-pages` |
+| Dashboard | Next.js + TypeScript | Deployed as a Worker via the OpenNext Cloudflare adapter, not Pages |
 | API + redirect engine | Hono + TypeScript on Cloudflare Workers | |
 | Database | Supabase PostgreSQL | Free tier, 500 MB |
 | Auth | Supabase Auth | Free tier, 50k MAU |
@@ -363,11 +363,13 @@ domain phases are gated.
    functionally identical.
 2. **Cloudflare account not confirmed.** Needed before phase 3 deployment. The zone must
    be on Cloudflare for custom hostnames to work later.
-3. **Next.js deploy target undecided.** Recommendation: OpenNext Cloudflare adapter
-   rather than `next-on-pages`, which is effectively in maintenance.
-4. **`.gitignore` does not exist and this is not yet a git repo.** `.env` and
-   `supabase.md` both contain live credentials in plaintext. Must be ignored before the
-   first `git init` and commit.
+3. ~~**Next.js deploy target undecided.**~~ Resolved: the OpenNext Cloudflare adapter,
+   deploying the dashboard as a Worker. `next-on-pages` is effectively in maintenance and
+   nothing here uses Cloudflare Pages.
+4. ~~**`.gitignore` does not exist and this is not yet a git repo.**~~ Resolved: one
+   repository at `github.com/HK-0811/QRly`, holding both apps. `.env`, `supabase.md`,
+   `backend/.dev.vars` and `frontend/.env.local` are ignored, and `tools/test-security.mjs`
+   asserts no secret reaches a build artefact.
 
 ---
 

@@ -1,3 +1,15 @@
+# Two configurations live in this file.
+#
+#   top level      — local development. `wrangler dev` and the vitest pool read it.
+#   [env.production] — what actually gets deployed. Always deploy with
+#                      `wrangler deploy --env production`.
+#
+# The split exists because this Worker is deployed from git. Cloudflare Workers Builds
+# runs a deploy command on every push to main, and a bare `wrangler deploy` would ship
+# PLATFORM_HOSTNAME = "localhost:8787" to production — where it matches no row in
+# `domains`, so every redirect 404s. Making the production values a separate block means
+# that mistake is not one command away.
+
 name = "qrly"
 main = "src/index.ts"
 compatibility_date = "2024-12-30"
@@ -21,4 +33,43 @@ preview_id = "0000000000000000000000000000000f"
 crons = ["0 0 * * *", "15 3 * * 1"]
 
 [observability]
+enabled = true
+
+# ---------------------------------------------------------------------------
+# Production. Every key is repeated rather than inherited: vars and bindings are
+# non-inheritable in Wrangler anyway, and spelling out the rest means what deploys
+# is readable in one block instead of assembled from two.
+#
+# `name` is set explicitly so the Worker is "qrly" and not "qrly-production" —
+# Wrangler otherwise appends the environment name.
+# ---------------------------------------------------------------------------
+[env.production]
+name = "qrly"
+workers_dev = true
+
+[env.production.vars]
+ENVIRONMENT = "production"
+# TODO before the first deploy: the hostname this Worker actually serves.
+# Initially "qrly.<your-account-subdomain>.workers.dev", later the custom domain.
+# This value must also exist as a row in the `domains` table — the redirect path
+# resolves the request hostname against that table before it serves anything, so a
+# deploy without the row 404s every scan. That row is a NEW migration; migrations are
+# checksummed and 0004_seed.sql cannot be edited.
+PLATFORM_HOSTNAME = "REPLACE_ME.workers.dev"
+# TODO before the first deploy: where the dashboard is served from. This is the CORS
+# allow-list origin for the API, so a wrong value breaks every write from the dashboard.
+DASHBOARD_ORIGIN = "https://REPLACE_ME.workers.dev"
+
+# TODO before the first deploy: `wrangler kv namespace create LINKS_KV` and paste the id.
+# The placeholder below is not a real namespace; it exists so local dev has a binding.
+[[env.production.kv_namespaces]]
+binding = "LINKS_KV"
+id = "0000000000000000000000000000000f"
+
+# Daily: Supabase keep-alive (a free project pauses after 7 days idle) and the retention
+# purge. Weekly: the Safe Browsing re-check.
+[env.production.triggers]
+crons = ["0 0 * * *", "15 3 * * 1"]
+
+[env.production.observability]
 enabled = true
