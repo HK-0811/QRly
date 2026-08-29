@@ -4,6 +4,11 @@
   "main": ".open-next/worker.js",
   "compatibility_date": "2024-12-30",
   "compatibility_flags": ["nodejs_compat"],
+  // The backend Worker holds a "*/*" route on this zone so that customer custom
+  // hostnames reach it. That pattern also matches app.qrly.lol, so the dashboard
+  // has to claim its own hostname with a more specific route — more specific wins.
+  // Without this, opening the dashboard would land you on the redirect engine.
+  "routes": [{ "pattern": "app.qrly.lol/*", "zone_name": "qrly.lol" }],
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS"
