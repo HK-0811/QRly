@@ -54,8 +54,9 @@ workers_dev = true
 # zone where this route picks it up. A per-hostname route would mean a deploy per
 # customer. See developers.cloudflare.com → Cloudflare for SaaS → Worker as origin.
 #
-# It also swallows app.qrly.lol, so the dashboard Worker must claim that hostname
-# with its own, more specific route — more specific wins.
+# It is also the ONLY route on this zone. The dashboard has no route of its own: it
+# is served from qrly.lol alongside short codes, reached through the service binding
+# below rather than through DNS. One hostname, one canonical origin.
 [[env.production.routes]]
 pattern = "*/*"
 zone_name = "qrly.lol"
@@ -65,10 +66,18 @@ ENVIRONMENT = "production"
 # The hostname this Worker serves and the default domain for every new link.
 # A matching row must exist in `domains` — added by migration 0008.
 PLATFORM_HOSTNAME = "qrly.lol"
-# CORS allow-list for /api/*. Comma-separated: the dashboard answers on its
-# workers.dev hostname until app.qrly.lol has DNS, and on both during the switch.
-# Drop the workers.dev entry once the custom domain is live.
-DASHBOARD_ORIGIN = "https://app.qrly.lol,https://qrly-dashboard.himanshukotkar007.workers.dev"
+# CORS allow-list for /api/*. The dashboard is now same-origin with the API, so in
+# production this never actually gets exercised by the app itself — it stays as the
+# allow-list that keeps a hostile page from making authenticated writes.
+DASHBOARD_ORIGIN = "https://qrly.lol"
+
+# The dashboard Worker, reached in-process. Same thread, same server: no network
+# hop, no DNS, no second request charge. This is what lets qrly.lol/links and
+# qrly.lol/aB3xK9p be the same hostname without the dashboard sitting in front of
+# the redirect hot path.
+[[env.production.services]]
+binding = "DASHBOARD"
+service = "qrly-dashboard"
 
 # Created 2026-08-29 as "qrly-links".
 [[env.production.kv_namespaces]]

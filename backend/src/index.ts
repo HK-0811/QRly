@@ -6,6 +6,7 @@ import { links } from './routes/links';
 import { domains } from './routes/domains';
 import { redirect } from './routes/redirect';
 import { handleScheduled } from './lib/cron';
+import { isDashboardPath } from './lib/dashboard';
 import { errorPage } from './lib/pages';
 import { errorId, log } from './lib/log';
 
@@ -29,6 +30,20 @@ app.use('/api/*', (c, next) =>
 app.route('/api', health);
 app.route('/api', links);
 app.route('/api', domains);
+
+// The dashboard shares this hostname with the redirect engine. This has to sit
+// after /api (which is ours) and before the redirect catch-all (which would
+// otherwise swallow /login as a short code). It is the only position that works.
+//
+// Forwarding only on the platform hostname is not a detail: a customer's custom
+// domain must serve their redirects and nothing of ours.
+app.use('*', async (c, next) => {
+  if (!c.env.DASHBOARD) return next();
+  const url = new URL(c.req.url);
+  if (url.host.toLowerCase() !== c.env.PLATFORM_HOSTNAME.toLowerCase()) return next();
+  if (!isDashboardPath(url.pathname)) return next();
+  return c.env.DASHBOARD.fetch(c.req.raw);
+});
 
 // The redirect engine is registered LAST. Its catch-all /:slug would otherwise
 // swallow every route declared after it.

@@ -8,6 +8,13 @@
 export interface Env {
   // bindings
   LINKS_KV: KVNamespace;
+  /**
+   * The dashboard Worker. Optional because it is bound only in production: local
+   * dev runs `next dev` on :3000 as its own server, and the test pool has no second
+   * Worker to bind. Absent means "do not forward", which is the correct behaviour in
+   * both of those places.
+   */
+  DASHBOARD?: Fetcher;
 
   // plain vars (wrangler.toml [vars])
   ENVIRONMENT: string;

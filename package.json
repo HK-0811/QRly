@@ -8,7 +8,8 @@
     "migrate": "node tools/migrate.mjs",
     "migrate:status": "node tools/migrate.mjs --status",
     "db:query": "node tools/query.mjs",
-    "test:rls": "node tools/verify-rls.mjs"
+    "test:rls": "node tools/verify-rls.mjs",
+    "check:paths": "node tools/check-dashboard-paths.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",

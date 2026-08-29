@@ -26,7 +26,10 @@ export const RESERVED_SLUGS = new Set([
   // reachable Worker paths
   'api', 'health', '__scheduled', 'favicon.ico', 'robots.txt', 'sitemap.xml',
   '.well-known', 'cdn-cgi',
-  // dashboard surface, in case the hostnames are ever merged
+  // dashboard surface. The hostnames ARE merged: the dashboard is served from the
+  // platform hostname alongside short codes, so every one of these is a live path
+  // and not a precaution. See lib/dashboard.ts.
+  'forgot-password', 'reset-password', '_next', 'geo',
   'app', 'dashboard', 'login', 'logout', 'signup', 'signin', 'register',
   'account', 'settings', 'profile', 'billing', 'admin', 'auth', 'reset',
   'verify', 'confirm', 'links', 'link', 'qr', 'qrcode', 'domains', 'domain',
