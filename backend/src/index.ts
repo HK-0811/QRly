@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { Env } from './env';
 import { health } from './routes/health';
 import { links } from './routes/links';
+import { domains } from './routes/domains';
 import { redirect } from './routes/redirect';
 import { handleScheduled } from './lib/cron';
 import { errorPage } from './lib/pages';
@@ -21,6 +22,7 @@ app.use('/api/*', (c, next) =>
 
 app.route('/api', health);
 app.route('/api', links);
+app.route('/api', domains);
 
 // The redirect engine is registered LAST. Its catch-all /:slug would otherwise
 // swallow every route declared after it.

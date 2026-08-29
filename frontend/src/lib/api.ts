@@ -9,7 +9,7 @@
  * against the project JWKS and then acts with service_role.
  */
 import { createClient } from '@/lib/supabase/client';
-import type { CreateLinkBody, Link, UpdateLinkBody } from '@/lib/types';
+import type { CreateLinkBody, Domain, Link, UpdateLinkBody } from '@/lib/types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787';
 
@@ -89,6 +89,24 @@ export interface UpdatedLink {
   cache_propagation_seconds: number;
 }
 
+export interface CreatedDomain {
+  domain: Domain;
+  instructions: { record_type: string; name: string; value: string; note: string };
+  cloudflare_error: string | null;
+}
+
+export interface DomainVerification {
+  domain: Domain;
+  outcome: { state: 'active' | 'pending' | 'failed'; message: string; hint?: string };
+  dns: {
+    found: string | null;
+    expected: string;
+    agreed_across_resolvers: boolean;
+    resolvers: Array<{ resolver: string; target: string | null; reachable: boolean }>;
+  };
+  certificate: { status: string | null; description: string; configured: boolean };
+}
+
 export const api = {
   createLink: (body: CreateLinkBody) =>
     request<CreatedLink>('/api/links', { method: 'POST', body: JSON.stringify(body) }),
@@ -98,4 +116,12 @@ export const api = {
 
   deleteLink: (id: string, opts: { force?: boolean } = {}) =>
     request<void>(`/api/links/${id}${opts.force ? '?force=true' : ''}`, { method: 'DELETE' }),
+
+  createDomain: (hostname: string) =>
+    request<CreatedDomain>('/api/domains', { method: 'POST', body: JSON.stringify({ hostname }) }),
+
+  verifyDomain: (id: string) =>
+    request<DomainVerification>(`/api/domains/${id}/verify`, { method: 'POST' }),
+
+  deleteDomain: (id: string) => request<void>(`/api/domains/${id}`, { method: 'DELETE' }),
 };

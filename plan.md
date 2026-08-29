@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–6, 9 and 10 complete; 7–8 blocked on a domain**
+> Last updated: 2026-08-29 · Status: **phases 0–6, 9 and 10 complete; 7–8 built, final acceptance blocked on a domain**
 
 ---
 
@@ -53,7 +53,7 @@ mechanism.
 | Next.js deploy target decision | Phase 0 | ✅ OpenNext Cloudflare adapter, configured |
 | Supabase pooler connection string | Phase 1 | ✅ obtained, migrations run against it |
 | Cloudflare account | Worker deploy | ⛔ **none yet — building local-only** |
-| Domain purchased + on Cloudflare | Phase 7 | ⛔ not purchased |
+| Domain purchased + on Cloudflare | Phase 7–8 acceptance | ⛔ not purchased — the code is written and tested against live DNS; only the real-registrar and real-certificate checks are outstanding |
 | Google Safe Browsing API key | Phase 9 | ❓ free, needs a Google Cloud project |
 
 Phases 0–6 and 9–10 need nothing beyond the Cloudflare account. Only 7 and 8 are hard-blocked.
@@ -277,36 +277,61 @@ exists to avoid.
 
 ---
 
-## Phase 7 — Custom domain DNS verification · **M** · ⛔ **needs domain**
+## Phase 7 — Custom domain DNS verification · **M** · 🟡 **built and tested; final acceptance needs a domain**
 
 **Goal:** a client adds one CNAME and comes back to a working custom domain.
 
-- [ ] Domains UI: add hostname, show the exact CNAME record, verify button
-- [ ] DNS-over-HTTPS lookup from the Worker, independent of Cloudflare's validation
-- [ ] Status states: pending → verifying → active → failed, each with distinct copy
-- [ ] **Distinguish "record not found yet" from "record found, certificate issuing"** — very different messages to a confused user
-- [ ] Edge cases: apex domain cannot take a CNAME; Cloudflare-hosted DNS must be grey-cloud/unproxied
-- [ ] Block domain deletion while links or QR codes still reference it
+- [x] Domains UI: add hostname, the exact CNAME record with copy buttons, verify button
+- [x] DNS-over-HTTPS from the Worker against **two** resolvers, independent of Cloudflare's validation
+- [x] Status states: pending → verifying → active → failed, each with its own copy
+- [x] **"No record yet" told apart from "record correct, certificate issuing"** — the distinction this phase exists for
+- [x] Apex domains refused *before* anything is created, including two-label suffixes like `example.co.uk`
+- [x] Proxied Cloudflare records detected and named, with the grey-cloud fix
+- [x] Domain deletion blocked while links reference it, with a message about printed codes
+- [x] The raw resolver answers shown behind a disclosure — "verification failed" with nothing behind it is why people give up on custom domains
 
-**Acceptance:** add a real subdomain on a real domain, add the CNAME at a real registrar,
-click verify, and it goes live.
+**Tested — 20 unit tests and 35 end-to-end checks**, including **real DoH lookups against
+live DNS**: a real CNAME (`www.github.com` → `github.com`) resolves and is correctly
+reported as pointing at the wrong target; a name with an address record is recognised; a
+nonexistent name reports pending with instructions rather than failure. Tenant isolation
+and the deletion guard both hold.
+
+**Not proven:** the acceptance criterion as written — a real subdomain at a real registrar
+going live — needs a registered domain. Everything up to that point runs.
+
+**A choice worth recording:** two resolvers are queried rather than one, and disagreement
+between them is reported as *pending*, not failure. A record created minutes ago is in
+exactly that state, and calling it a failure is how a correct setup gets torn down and
+redone.
 
 ---
 
-## Phase 8 — Cloudflare for SaaS SSL · **M** · ⛔ **needs domain**
+## Phase 8 — Cloudflare for SaaS SSL · **M** · 🟡 **written; unexercised without an account**
 
 **Goal:** automatic certificates. The step that makes the CNAME actually work.
 
-- [ ] Cloudflare API client (`cloudflare.ts`)
-- [ ] `POST /custom_hostnames` on domain registration
-- [ ] Certificate status polling
-- [ ] Fallback origin configuration
-- [ ] Worker route wiring for custom hostnames
-- [ ] Hostname cleanup on domain deletion
+- [x] Cloudflare API client (`lib/cloudflare.ts`)
+- [x] `POST /custom_hostnames` on domain registration, with `http` validation so the customer never adds a second record
+- [x] Certificate status polling, folded into the same verify call as the DNS check
+- [x] Every SSL state translated into a sentence rather than shown as a raw status string
+- [x] Hostname cleanup on domain deletion
+- [x] Registration retried on verify, so a domain added before credentials existed recovers
+- [ ] Fallback origin configuration — a one-time zone setting, not code; nothing to write until a zone exists
 
-**Acceptance:** `https://qr.realclient.com/ABC123` resolves with a **valid certificate**
-and redirects correctly. Certificate issuance is fully automatic — the client never sees
-a validation step.
+**⚠ This client has never run against the real API.** It needs a Cloudflare account with a
+zone, which this project does not have. Request and response shapes follow the published
+API and the error handling is real, but that is not the same confidence as code which has
+round-tripped. The file says so at the top, and the UI says so to the user: a banner
+states plainly that certificates cannot be issued yet, rather than letting verification
+fail mysteriously.
+
+**Acceptance:** not met, and cannot be until a domain exists. `https://qr.realclient.com/ABC123`
+resolving with a valid certificate is the one claim in this plan that is still unverified.
+
+**The correction this phase exists for is implemented and stated in the UI:** a CNAME
+alone produces a TLS certificate error, because no certificate exists for the customer's
+hostname. Something has to register it. That is one API call and is invisible to the
+client — from their side it really is just "add a CNAME and come back".
 
 ---
 
@@ -389,10 +414,12 @@ the limit that actually bites printed beside them.
 
 ## What is left
 
-**Phases 7 and 8 — custom domain DNS verification and Cloudflare for SaaS certificate
-issuance.** Both are hard-blocked on registering a domain and adding it to Cloudflare as
-a zone. Nothing else depends on them: everything through phase 10 runs and is tested on
-`localhost:8787`.
+**One unverified claim.** Phases 7 and 8 are written, and everything about them that can
+be exercised without a registered domain has been: hostname validation, apex detection,
+live DNS-over-HTTPS lookups against two resolvers, the full status state machine, tenant
+isolation, and the deletion guard. What remains unproven is the end of the flow — a real
+CNAME at a real registrar, and a Cloudflare-issued certificate serving over HTTPS. The
+Cloudflare API client has never round-tripped.
 
 Three smaller items are gated on credentials rather than on work:
 

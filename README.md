@@ -135,13 +135,15 @@ development project.
 
 | Command | Covers |
 |---|---|
-| `cd backend && npm test` | 114 unit and integration tests, including every failure mode in `architecture.md` §12 |
+| `cd backend && npm test` | 141 unit and integration tests, including every failure mode in `architecture.md` §12 |
 | `npm run test:rls` | RLS, adversarially, with two real signed-in accounts |
 | `node tools/test-api.mjs` | The privileged API end to end |
 | `node tools/test-redirect.mjs` | Redirect engine, cache behaviour, measured latency |
 | `node tools/test-analytics.mjs` | Real scans in, stored rows out |
 | `node tools/test-analytics-rpc.mjs` | Dashboard aggregates, tenant isolation, injection resistance |
 | `node tools/test-security.mjs` | Rate limits, retention purge, secrets audit |
+| `node tools/test-domains.mjs` | Custom domain registration and verification, against live DNS |
+| `node tools/check-ceilings.mjs` | Free-tier headroom, measured against the real database |
 | `node --experimental-strip-types tools/render-qr-fixtures.mjs && node tools/test-qr.mjs .qr-fixtures` | 49 QR style/size combinations through a real decoder |
 
 The `tools/` suites need the Worker running (`cd backend && npm run dev`) and talk to the
@@ -195,8 +197,12 @@ An empty table means the keep-alive is not running.
 - **A printed QR code binds to its hostname and slug forever.** Both are immutable at the
   database level, by trigger, not by UI convention. Old hostnames must stay alive
   permanently.
-- **Edits propagate in up to 60 seconds.** KV is eventually consistent. The dashboard
-  says so next to the edit form; do not remove that.
+- **Edits propagate in up to 60 seconds.** That is Workers KV's global propagation delay,
+  not the cache TTL — freshness comes from the write-through on edit. The dashboard says
+  so next to the edit form; do not remove that.
+- **The cache TTL is an hour, and that is a quota decision.** A cache fill is a KV write
+  and the free tier allows 1,000 a day. At 60 seconds, one continuously-scanned link
+  exhausts the whole budget. See the comment on `LINK_TTL_SECONDS`.
 - **Slug collisions are handled by retrying on the unique constraint.** A read-then-write
   pre-check races.
 - **`is_first_scan` is resolved by a database trigger, not the Worker.** Deciding it in
@@ -223,6 +229,21 @@ this project that overclaims.
 
 ## Status
 
-Phases 0–6, 9 and 10 are complete. Phases 7 and 8 — custom domain DNS verification and
-Cloudflare for SaaS certificate issuance — are blocked on registering a domain, and are
-the only parts of `plan.md` not built. See `plan.md` for what each phase proved.
+Every phase in `plan.md` is built. One claim in it is still unverified.
+
+Phases 0–6, 9 and 10 are complete and tested. Phases 7 and 8 — custom domains and
+certificate issuance — are written, and everything about them that can be exercised
+without a registered domain has been: hostname validation, apex detection, live
+DNS-over-HTTPS lookups against two resolvers, the status state machine, tenant isolation
+and the deletion guard.
+
+**What is not proven:** a real CNAME at a real registrar going live over HTTPS with a
+Cloudflare-issued certificate. That needs a domain on a Cloudflare zone. The Cloudflare
+API client in `backend/src/lib/cloudflare.ts` has never round-tripped against the real
+API, and the file and the UI both say so.
+
+Three things are gated on credentials rather than on work: deploying (a Cloudflare
+account), Safe Browsing verdicts (a free Google Cloud key — until then links are reported
+`unchecked`, never falsely `clean`), and Cloudflare's own rate-limiting rule (a zone).
+
+See `plan.md` for what each phase actually proved, including the defects the tests found.
