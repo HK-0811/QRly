@@ -14,6 +14,7 @@ import { classifyNetwork } from './asn';
 import { detectBot } from './bot';
 import { parseAcquisition, parseLanguages, parseUserAgent } from './ua';
 import { clientIp, getDailySalt, visitorHash } from './hash';
+import { log } from './log';
 
 /**
  * Global Privacy Control, and the older Do Not Track.
@@ -129,6 +130,13 @@ export async function recordScan(ctx: ScanContext): Promise<void> {
     const row = await buildScanEvent(ctx);
     await insert(ctx.env, 'scan_events', row, { returning: false });
   } catch (err) {
-    console.error('scan event insert failed', err instanceof Error ? err.message : err);
+    // Swallowed on purpose. The 302 has already been sent; a scan is never
+    // blocked by telemetry, and losing the event is the documented trade in
+    // architecture.md §12.
+    log.warn({
+      event: 'scan_event_insert_failed',
+      link_id: ctx.link.id,
+      error: err instanceof Error ? err : String(err),
+    });
   }
 }

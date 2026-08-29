@@ -1,0 +1,257 @@
+{
+  "fetched_at": "2026-08-29",
+  "note": "Every figure below was read off the vendor's own published pricing page on the date above, not recalled. Values the page did not state are recorded as null rather than estimated. Re-run tools/refresh-pricing.md to check for drift.",
+  "vendors": [
+    {
+      "name": "Bitly",
+      "source": "https://bitly.com/pages/pricing",
+      "currency": "USD",
+      "plans": [
+        {
+          "name": "Free",
+          "monthly_billed_annually": 0,
+          "monthly_billed_monthly": 0,
+          "links_per_month": 5,
+          "qr_codes_per_month": 2,
+          "custom_domains": 0,
+          "analytics_retention": null,
+          "seats": null
+        },
+        {
+          "name": "Core",
+          "monthly_billed_annually": 10,
+          "monthly_billed_monthly": null,
+          "links_per_month": 100,
+          "qr_codes_per_month": 5,
+          "custom_domains": 0,
+          "analytics_retention": "30 days",
+          "seats": null
+        },
+        {
+          "name": "Growth",
+          "monthly_billed_annually": 29,
+          "monthly_billed_monthly": 35,
+          "links_per_month": 500,
+          "qr_codes_per_month": 10,
+          "custom_domains": 1,
+          "analytics_retention": "120 days",
+          "seats": null
+        },
+        {
+          "name": "Premium",
+          "monthly_billed_annually": 199,
+          "monthly_billed_monthly": 300,
+          "links_per_month": 3000,
+          "qr_codes_per_month": 200,
+          "custom_domains": 1,
+          "analytics_retention": "1 year",
+          "seats": null
+        },
+        {
+          "name": "Enterprise",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": null,
+          "links_per_month": null,
+          "qr_codes_per_month": null,
+          "custom_domains": null,
+          "analytics_retention": "2 years",
+          "seats": null
+        }
+      ]
+    },
+    {
+      "name": "Rebrandly",
+      "source": "https://www.rebrandly.com/pricing",
+      "currency": "USD",
+      "plans": [
+        {
+          "name": "Free",
+          "monthly_billed_annually": 0,
+          "monthly_billed_monthly": 0,
+          "links_per_month": 10,
+          "tracked_clicks_per_month": 100,
+          "custom_domains": 1,
+          "analytics_retention": null,
+          "seats": null
+        },
+        {
+          "name": "Essentials",
+          "monthly_billed_annually": 8,
+          "monthly_billed_monthly": 11,
+          "links_per_month": 250,
+          "tracked_clicks_per_month": 10000,
+          "custom_domains": 2,
+          "analytics_retention": null,
+          "seats": null
+        },
+        {
+          "name": "Professional",
+          "monthly_billed_annually": 22,
+          "monthly_billed_monthly": 32,
+          "links_per_month": 1500,
+          "tracked_clicks_per_month": 25000,
+          "custom_domains": 3,
+          "analytics_retention": "6 months (conversion data)",
+          "seats": 2
+        },
+        {
+          "name": "Growth",
+          "monthly_billed_annually": 69,
+          "monthly_billed_monthly": 99,
+          "links_per_month": 3500,
+          "tracked_clicks_per_month": 150000,
+          "custom_domains": 10,
+          "analytics_retention": "1 year (conversion data)",
+          "seats": 5
+        },
+        {
+          "name": "Enterprise",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": null,
+          "links_per_month": null,
+          "tracked_clicks_per_month": null,
+          "custom_domains": null,
+          "analytics_retention": "2 years (conversion data)",
+          "seats": null
+        }
+      ]
+    },
+    {
+      "name": "Short.io",
+      "source": "https://short.io/pricing/",
+      "currency": "USD",
+      "annual_note": "The page advertises 17% off for annual billing but does not print the annual figures, so only the monthly prices are recorded.",
+      "plans": [
+        {
+          "name": "Free",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": 0,
+          "links_total": 1000,
+          "tracked_clicks_per_month": 50000,
+          "custom_domains": 5,
+          "analytics_retention": null,
+          "seats": 1
+        },
+        {
+          "name": "Hobby",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": 5,
+          "links_total": 2500,
+          "tracked_clicks_per_month": 100000,
+          "custom_domains": 7,
+          "analytics_retention": null,
+          "seats": 1
+        },
+        {
+          "name": "Pro",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": 18,
+          "links_total": null,
+          "tracked_clicks_per_month": null,
+          "custom_domains": 10,
+          "analytics_retention": null,
+          "seats": 1
+        },
+        {
+          "name": "Team",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": 48,
+          "links_total": null,
+          "tracked_clicks_per_month": null,
+          "custom_domains": 50,
+          "analytics_retention": null,
+          "seats": null
+        },
+        {
+          "name": "Enterprise",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": 148,
+          "links_total": null,
+          "tracked_clicks_per_month": null,
+          "custom_domains": null,
+          "analytics_retention": null,
+          "seats": null
+        }
+      ]
+    },
+    {
+      "name": "Dub",
+      "source": "https://dub.co/pricing",
+      "currency": "USD",
+      "annual_note": "Figures are from the Dub Partners tiers, which is what the pricing page prints prices for.",
+      "plans": [
+        {
+          "name": "Business",
+          "monthly_billed_annually": 77,
+          "monthly_billed_monthly": 90,
+          "tracked_events_per_month": 250000,
+          "custom_domains": 100,
+          "analytics_retention": "3 years",
+          "seats": 10
+        },
+        {
+          "name": "Advanced",
+          "monthly_billed_annually": 270,
+          "monthly_billed_monthly": 300,
+          "tracked_events_per_month": 1000000,
+          "custom_domains": 250,
+          "analytics_retention": "5 years",
+          "seats": 20
+        },
+        {
+          "name": "Enterprise",
+          "monthly_billed_annually": null,
+          "monthly_billed_monthly": null,
+          "tracked_events_per_month": null,
+          "custom_domains": null,
+          "analytics_retention": "Unlimited",
+          "seats": null
+        }
+      ]
+    }
+  ],
+  "qrify_ceilings": [
+    {
+      "service": "Cloudflare Workers",
+      "free_limit": "100,000 requests/day",
+      "means": "100,000 scans a day",
+      "cost": 0
+    },
+    {
+      "service": "Workers KV",
+      "free_limit": "100,000 reads/day · 1,000 writes/day",
+      "means": "Reads scale with scans; writes only happen when a link is edited",
+      "cost": 0
+    },
+    {
+      "service": "Cloudflare Pages",
+      "free_limit": "Unlimited requests · 500 builds/month",
+      "means": "The dashboard",
+      "cost": 0
+    },
+    {
+      "service": "Cloudflare for SaaS",
+      "free_limit": "100 custom hostnames",
+      "means": "100 client domains, then $0.10/month each",
+      "cost": 0
+    },
+    {
+      "service": "Supabase Postgres",
+      "free_limit": "500 MB",
+      "means": "Roughly 1,000,000 scan events with indexes; the nightly purge keeps it under",
+      "cost": 0
+    },
+    {
+      "service": "Supabase Auth",
+      "free_limit": "50,000 monthly active users",
+      "means": "Accounts",
+      "cost": 0
+    },
+    {
+      "service": "Google Safe Browsing",
+      "free_limit": "Free API",
+      "means": "Destination screening on create and weekly",
+      "cost": 0
+    }
+  ]
+}

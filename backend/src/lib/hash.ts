@@ -19,6 +19,7 @@
 import type { Env } from '../env';
 import { readSalt, writeSalt } from './kv';
 import { rpc } from './supabase';
+import { log } from './log';
 
 /**
  * 128 bits of a sha256, hex-encoded. Enough that collisions are irrelevant at any
@@ -50,7 +51,7 @@ export async function getDailySalt(env: Env, day = utcDay()): Promise<string | n
     await writeSalt(env, day, salt).catch(() => {});
     return salt;
   } catch (err) {
-    console.error('could not obtain daily salt', err);
+    log.warn({ event: 'daily_salt_unavailable', day, error: err instanceof Error ? err : String(err) });
     return null;
   }
 }

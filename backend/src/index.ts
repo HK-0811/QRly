@@ -5,6 +5,8 @@ import { health } from './routes/health';
 import { links } from './routes/links';
 import { redirect } from './routes/redirect';
 import { handleScheduled } from './lib/cron';
+import { errorPage } from './lib/pages';
+import { errorId, log } from './lib/log';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -24,11 +26,38 @@ app.route('/api', links);
 // swallow every route declared after it.
 app.route('/', redirect);
 
-app.notFound((c) => c.json({ error: 'not_found', message: 'No such route' }, 404));
+app.notFound((c) =>
+  // /api/* callers get JSON; anything else is a person who scanned something, and
+  // a JSON body would be gibberish to them.
+  c.req.path.startsWith('/api/')
+    ? c.json({ error: 'not_found', message: 'No such route' }, 404)
+    : errorPage('not-found'),
+);
 
 app.onError((err, c) => {
-  console.error('unhandled', err);
-  return c.json({ error: 'internal_error', message: 'Something went wrong' }, 500);
+  const id = errorId();
+  log.error({
+    event: 'unhandled_error',
+    error_id: id,
+    path: c.req.path,
+    method: c.req.method,
+    error: err instanceof Error ? err : String(err),
+  });
+
+  if (c.req.path.startsWith('/api/')) {
+    return c.json(
+      {
+        error: 'internal_error',
+        message: 'Something went wrong. Try again.',
+        error_id: id,
+      },
+      500,
+    );
+  }
+
+  // A scan that fails must never render a stack trace to whoever is holding the
+  // phone in front of the poster.
+  return errorPage(id);
 });
 
 export default {

@@ -193,9 +193,30 @@ async function main() {
 
   const miss2 = await scan(ghost);
   check(
-    'the second probe is served from the negative cache, sparing Postgres',
-    miss2.source === 'kv-negative',
+    'the second probe still reaches Postgres — the first miss is deliberately not cached',
+    miss2.source === 'db',
     `source=${miss2.source}`,
+  );
+
+  const miss3 = await scan(ghost);
+  check(
+    'the third is served from the negative cache, sparing Postgres from then on',
+    miss3.source === 'kv-negative',
+    `source=${miss3.source}`,
+  );
+
+  // A bot walking random slugs never repeats one, so it never crosses the
+  // second-sighting threshold and never spends a KV write. The free tier allows
+  // 1,000 writes a day, so caching every first miss would let a single crawl
+  // exhaust the entire cache.
+  const walkSources = [];
+  for (let i = 0; i < 12; i++) {
+    walkSources.push((await scan(`walk-${stamp}-${i}`)).source);
+  }
+  check(
+    'a namespace walk writes nothing to KV',
+    walkSources.every((src) => src === 'db'),
+    `sources: ${[...new Set(walkSources)].join(', ')}`,
   );
 
   // -- states --------------------------------------------------------------

@@ -13,10 +13,11 @@
 import { Hono } from 'hono';
 import type { CachedLink, Link, SafeBrowsingStatus } from '../types';
 import type { Env } from '../env';
-import { readLink, writeLink, writeMiss } from '../lib/kv';
+import { readLink, writeLink, writeMiss, shouldCacheMiss } from '../lib/kv';
 import { select, DbError } from '../lib/supabase';
 import { recordScan } from '../lib/analytics';
 import { REDIRECT_LIMIT, rateLimit } from '../lib/rate-limit';
+import { log } from '../lib/log';
 import {
   disabledPage,
   expiredPage,
@@ -47,29 +48,36 @@ type LinkWithDomain = Link & { domains: { hostname: string; is_active: boolean }
  * burn through the free tier's 1,000 KV writes per day in seconds.
  */
 async function activeHostnames(env: Env): Promise<Set<string> | null> {
-  const cached = await env.LINKS_KV.get(HOSTS_KEY, 'text');
-  if (cached !== null) {
-    try {
-      return new Set(JSON.parse(cached) as string[]);
-    } catch {
-      /* fall through and refetch */
-    }
+  try {
+    const cached = await env.LINKS_KV.get(HOSTS_KEY, 'text');
+    if (cached !== null) return new Set(JSON.parse(cached) as string[]);
+  } catch (err) {
+    // A KV failure or a corrupt entry both mean "ask Postgres", never "fail".
+    log.warn({ event: 'kv_hosts_read_failed', error: err instanceof Error ? err : String(err) });
   }
 
+  let hosts: string[];
   try {
     const rows = await select<{ hostname: string }>(
       env,
       'domains?is_active=eq.true&select=hostname',
     );
-    const hosts = rows.map((r) => r.hostname.toLowerCase());
+    hosts = rows.map((r) => r.hostname.toLowerCase());
+  } catch (err) {
+    log.error({ event: 'hostname_lookup_failed', error: err instanceof Error ? err : String(err) });
+    return null; // Postgres unreachable — the caller decides what that means
+  }
+
+  // Caching the result must not be able to fail the request that produced it.
+  try {
     await env.LINKS_KV.put(HOSTS_KEY, JSON.stringify(hosts), {
       expirationTtl: HOSTS_TTL_SECONDS,
     });
-    return new Set(hosts);
   } catch (err) {
-    console.error('hostname lookup failed', err);
-    return null; // Postgres unreachable — the caller decides what that means
+    log.warn({ event: 'kv_hosts_write_failed', error: err instanceof Error ? err : String(err) });
   }
+
+  return new Set(hosts);
 }
 
 // ---------------------------------------------------------------------------
@@ -207,20 +215,28 @@ redirect.get('/:slug', async (c) => {
       link = await resolveFromDatabase(c.env, hostname, slug);
       source = 'db';
     } catch (err) {
-      if (err instanceof DbError) {
-        console.error('link lookup failed', err.status, err.message);
-      } else {
-        console.error('link lookup failed', err);
-      }
+      log.error({
+        event: 'link_lookup_failed',
+        hostname,
+        slug,
+        status: err instanceof DbError ? err.status : undefined,
+        error: err instanceof Error ? err : String(err),
+      });
       return withTiming(unavailablePage(), started, 'db-error');
     }
 
     // Populate the cache for the next scan, including the negative case.
-    c.executionCtx.waitUntil(
-      link
-        ? writeLink(c.env, hostname, slug, link).catch((e) => console.error('kv write', e))
-        : writeMiss(c.env, hostname, slug).catch((e) => console.error('kv write', e)),
-    );
+    const onKvError = (err: unknown) =>
+      log.warn({ event: 'kv_write_failed', hostname, slug, error: err instanceof Error ? err : String(err) });
+
+    if (link) {
+      c.executionCtx.waitUntil(writeLink(c.env, hostname, slug, link).catch(onKvError));
+    } else if (shouldCacheMiss(hostname, slug)) {
+      // Second sighting. A first miss is not cached, because a namespace walk
+      // would otherwise spend the whole daily KV write budget on slugs nobody
+      // will ever request again.
+      c.executionCtx.waitUntil(writeMiss(c.env, hostname, slug).catch(onKvError));
+    }
   }
 
   const verdict = evaluate(link);

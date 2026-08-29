@@ -133,8 +133,8 @@ export function AnalyticsScreen({ links }: { links: LinkWithDomain[] }) {
         note={
           data && data.summary.unattributed > 0 ? (
             <>
-              {data.summary.unattributed.toLocaleString()} scans in this range carry no visitor
-              identifier &mdash; {data.summary.gpc_scans.toLocaleString()} of them because the
+              {data.summary.unattributed.toLocaleString('en-US')} scans in this range carry no visitor
+              identifier &mdash; {data.summary.gpc_scans.toLocaleString('en-US')} of them because the
               scanner sent a Global Privacy Control signal, which this service honours. They are
               counted as scans but cannot contribute to the unique-visitor line, so that line
               under-counts by design.
@@ -319,7 +319,7 @@ export function AnalyticsScreen({ links }: { links: LinkWithDomain[] }) {
               signal that a printed code was scanned rather than a link forwarded.{' '}
               {data ? (
                 <>
-                  <span className="tabular">{data.summary.direct_scans.toLocaleString()}</span> of
+                  <span className="tabular">{data.summary.direct_scans.toLocaleString('en-US')}</span> of
                   these scans had no referrer.
                 </>
               ) : null}

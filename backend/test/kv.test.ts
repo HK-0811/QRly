@@ -1,6 +1,16 @@
 import { env } from 'cloudflare:test';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { readLink, writeLink, writeMiss, invalidate, linkKey } from '../src/lib/kv';
+import {
+  readLink,
+  writeLink,
+  writeMiss,
+  invalidate,
+  linkKey,
+  shouldCacheMiss,
+  resetSeenMisses,
+  LINK_TTL_SECONDS,
+  NEGATIVE_TTL_SECONDS,
+} from '../src/lib/kv';
 import type { CachedLink } from '../src/types';
 
 const sample: CachedLink = {
@@ -72,5 +82,55 @@ describe('kv cache', () => {
   it('keeps links on different hostnames separate', async () => {
     await writeLink(env, 'a.test', 'abc', sample);
     expect((await readLink(env, 'b.test', 'abc')).hit).toBe(false);
+  });
+});
+
+describe('negative-cache admission', () => {
+  beforeEach(resetSeenMisses);
+
+  it('does not spend a KV write on the first sighting of an unknown slug', () => {
+    // A bot walking random slugs is the reason. One write per probe would spend
+    // the entire 1,000/day free-tier write budget on slugs nobody requests twice.
+    expect(shouldCacheMiss('qrify.test', 'random-1')).toBe(false);
+  });
+
+  it('caches on the second sighting, because people retry a mistyped code', () => {
+    shouldCacheMiss('qrify.test', 'typo');
+    expect(shouldCacheMiss('qrify.test', 'typo')).toBe(true);
+  });
+
+  it('tracks hostname and slug together', () => {
+    shouldCacheMiss('a.test', 'abc');
+    expect(shouldCacheMiss('b.test', 'abc')).toBe(false);
+  });
+
+  it('costs nothing for a namespace walk', () => {
+    const wouldWrite = Array.from({ length: 5_000 }, (_, i) =>
+      shouldCacheMiss('qrify.test', `walk-${i}`),
+    ).filter(Boolean).length;
+    expect(wouldWrite).toBe(0);
+  });
+
+  it('bounds its own memory', () => {
+    for (let i = 0; i < 25_000; i++) shouldCacheMiss('qrify.test', `flood-${i}`);
+    // Still functioning after the eviction.
+    expect(shouldCacheMiss('qrify.test', 'after')).toBe(false);
+    expect(shouldCacheMiss('qrify.test', 'after')).toBe(true);
+  });
+});
+
+describe('cache TTLs', () => {
+  it('keeps link entries long enough that a hot link does not exhaust the write budget', () => {
+    // A cache fill is a KV write and the free tier allows 1,000 a day. At a
+    // 60-second TTL one continuously-scanned link refills 1,440 times daily and
+    // spends the entire budget by itself. Freshness comes from the write-through
+    // on edit, not from this number.
+    const refillsPerDay = (24 * 60 * 60) / LINK_TTL_SECONDS;
+    expect(refillsPerDay).toBeLessThanOrEqual(24);
+  });
+
+  it('respects the 60-second floor Workers KV enforces', () => {
+    expect(NEGATIVE_TTL_SECONDS).toBeGreaterThanOrEqual(60);
+    expect(LINK_TTL_SECONDS).toBeGreaterThanOrEqual(60);
   });
 });

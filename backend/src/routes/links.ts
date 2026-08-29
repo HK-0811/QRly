@@ -20,6 +20,7 @@ import { generateSlug, validateCustomSlug } from '../lib/slug';
 import { invalidateQuietly } from '../lib/kv';
 import { checkUrl } from '../lib/safe-browsing';
 import { API_WRITE_LIMIT, rateLimit, rateLimitHeaders } from '../lib/rate-limit';
+import { log } from '../lib/log';
 
 type Ctx = { Bindings: Env; Variables: AuthVariables };
 
@@ -94,7 +95,7 @@ async function screenLink(
   }
 
   if (verdict.status === 'flagged') {
-    console.warn(`link ${link.id} flagged by Safe Browsing: ${verdict.threats.join(', ')}`);
+    log.warn({ event: 'link_flagged', link_id: link.id, threats: verdict.threats });
   }
 }
 
@@ -209,7 +210,7 @@ links.post('/links', async (c) => {
       // which is what it is.
       c.executionCtx.waitUntil(
         screenLink(c.env, created, domain.hostname, domain.is_active).catch((err) =>
-          console.error('safe browsing screen failed', err),
+          log.warn({ event: 'safe_browsing_screen_failed', link_id: created.id, error: err }),
         ),
       );
 
@@ -329,7 +330,7 @@ links.patch('/links/:id', async (c) => {
     if (patch.destination_url !== undefined) {
       c.executionCtx.waitUntil(
         screenLink(c.env, updated, domain.hostname, domain.is_active).catch((err) =>
-          console.error('safe browsing rescreen failed', err),
+          log.warn({ event: 'safe_browsing_rescreen_failed', link_id: updated.id, error: err }),
         ),
       );
     }

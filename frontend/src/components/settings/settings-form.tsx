@@ -90,7 +90,7 @@ export function SettingsForm({ profile, scanCount }: { profile: Profile | null; 
             {scanCount > 0 && (
               <>
                 {' '}
-                You currently have <span className="tabular">{scanCount.toLocaleString()}</span>{' '}
+                You currently have <span className="tabular">{scanCount.toLocaleString('en-US')}</span>{' '}
                 stored scans.
               </>
             )}

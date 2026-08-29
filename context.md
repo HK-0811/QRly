@@ -1,7 +1,7 @@
 # qrify — Project Context
 
 > Single source of truth for decisions, scope, and architecture.
-> Last updated: 2026-08-29 · Status: **pre-implementation, nothing built yet**
+> Last updated: 2026-08-29 · Status: **built.** Phases 0–6, 9 and 10 complete; 7–8 blocked on a domain.
 
 ---
 
@@ -24,14 +24,14 @@ Target size: **1,000–2,000 users.** Explicitly not designed beyond that.
 
 | Item | State |
 |---|---|
-| Code | None. Nothing implemented. |
-| `backend/` | Created, empty |
-| `frontend/` | Created, empty |
-| Supabase project | Exists — ref `qragyngjqlizazdkaowa` |
+| Code | Built and tested. `plan.md` records what each phase actually proved. |
+| `backend/` | Worker: redirect engine, privileged API, analytics pipeline, scheduled jobs |
+| `frontend/` | Dashboard: auth, links, QR studio, analytics, settings, privacy, cost page |
+| Supabase project | Live — ref `qragyngjqlizazdkaowa`, 7 migrations applied |
 | Supabase keys | Present in `.env` (anon + service_role, both verified valid) |
-| Postgres password | Present in `supabase.md` |
-| Domain | **Not purchased yet** — blocks phases 7 and 8 only |
-| Cloudflare account | Not confirmed yet |
+| Postgres password | Present in `supabase.md`. **Use the session pooler string** — the direct host is IPv6-only. |
+| Domain | **Not purchased** — blocks phases 7 and 8, and nothing else |
+| Cloudflare account | None yet — everything runs and is tested locally; only deployment is blocked |
 
 ---
 
@@ -247,11 +247,15 @@ OS · browser · UTM · bot inclusion
 | Supabase Auth | 50,000 MAU | far beyond 2,000 users |
 | Supabase projects | 2 active | fine |
 | Workers | 100,000 req/day | 100k scans/day |
-| Workers KV | 100k reads/day · 1k writes/day | writes only fire on link edits |
+| Workers KV | 100k reads/day · 1k writes/day | **the binding constraint.** A cache fill is a write, so writes scale with *hot links*, not scans. At the 60-minute TTL roughly 42 links can stay continuously hot. Measured by `tools/check-ceilings.mjs`. |
 | Pages | unlimited requests · 500 builds/mo | fine |
 | Cloudflare for SaaS | 100 custom hostnames | 100 client domains, then $0.10/mo each |
 
 **Running cost at target scale: $0/month**, excluding domain registration.
+
+`tools/check-ceilings.mjs` measures these against the live database rather than asserting
+them, and `/cost` publishes the comparison using each competitor's own published prices
+with the date they were read.
 
 ### Known hazard — Supabase auto-pause
 Free Supabase projects **pause after 7 days of inactivity**, which would kill the demo

@@ -195,6 +195,28 @@ export function unavailablePage(): Response {
   );
 }
 
+/**
+ * An unhandled failure. Carries a short id that also appears in the log line, so
+ * "I got error a3f9c2" is a findable report rather than a shrug.
+ *
+ * No stack trace, no exception message: whoever scanned the code cannot act on
+ * either, and both leak implementation detail to whoever else scans it.
+ */
+export function errorPage(id: string): Response {
+  return new Response(
+    SHELL({
+      title: 'Something went wrong',
+      heading: 'Something went wrong on our side',
+      accent: '#dc2626',
+      body:
+        `<p>This is not a problem with the code you scanned. Trying again usually works.</p>` +
+        `<p>If it keeps happening, this reference identifies what failed:</p>` +
+        `<div class="url">${esc(id)}</div>`,
+    }),
+    { status: 500, headers: NO_STORE },
+  );
+}
+
 /** The bare hostname of a redirect domain, which resolves to no link at all. */
 export function rootPage(dashboardOrigin: string): Response {
   return new Response(

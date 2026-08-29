@@ -10,6 +10,7 @@ import type { Env } from '../env';
 import type { Link } from '../types';
 import { insert, rpc, select, update, DbError } from './supabase';
 import { checkUrls } from './safe-browsing';
+import { log } from './log';
 
 type JobResult = { ok: boolean; detail: Record<string, unknown> };
 
@@ -29,7 +30,7 @@ async function record(env: Env, job: string, started: number, result: JobResult)
   } catch (err) {
     // If we cannot even write the audit row, Postgres is the thing that is down.
     // Log and move on: failing the cron here would just hide the real cause.
-    console.error(`cron_runs write failed for ${job}:`, err instanceof Error ? err.message : err);
+    log.error({ event: 'cron_audit_write_failed', job, error: err instanceof Error ? err : String(err) });
   }
 }
 
@@ -37,11 +38,11 @@ async function run(env: Env, job: string, fn: () => Promise<Record<string, unkno
   const started = Date.now();
   try {
     const detail = await fn();
-    console.log(`cron ${job} ok in ${Date.now() - started}ms`, JSON.stringify(detail));
+    log.info({ event: 'cron_completed', job, duration_ms: Date.now() - started, ...detail });
     await record(env, job, started, { ok: true, detail });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    console.error(`cron ${job} FAILED after ${Date.now() - started}ms:`, message);
+    log.error({ event: 'cron_failed', job, duration_ms: Date.now() - started, error: message });
     await record(env, job, started, { ok: false, detail: { error: message } });
   }
 }
@@ -146,7 +147,7 @@ export async function recheckSafeBrowsing(env: Env): Promise<Record<string, unkn
             domain_active: domain.is_active,
           }),
           { expirationTtl: 60 },
-        ).catch((err) => console.error('kv write during rescreen', err));
+        ).catch((err) => log.warn({ event: 'kv_write_failed_during_rescreen', link_id: link.id, error: err }));
       }
     }
   }
@@ -171,7 +172,7 @@ export async function handleScheduled(event: ScheduledController, env: Env): Pro
 
     default:
       // An unmatched cron means wrangler.toml and this switch have drifted apart.
-      console.warn(`no handler for cron expression "${event.cron}"`);
+      log.warn({ event: 'cron_unmatched', cron: event.cron });
       await run(env, 'unknown_cron', async () => ({ cron: event.cron }));
   }
 }

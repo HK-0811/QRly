@@ -3,7 +3,7 @@
 > Phased build plan with tasks, deliverables, and acceptance criteria.
 > Reads alongside `context.md` (scope and decisions) and `architecture.md` (technical design).
 >
-> Last updated: 2026-08-29 · Status: **phases 0–6 and 9 complete; 7–8 blocked on a domain**
+> Last updated: 2026-08-29 · Status: **phases 0–6, 9 and 10 complete; 7–8 blocked on a domain**
 
 ---
 
@@ -345,29 +345,62 @@ into `lib/rate-limit.ts` rather than left for someone to discover.
 
 ---
 
-## Phase 10 — Production hardening · **M**
+## Phase 10 — Production hardening · **M** · ✅ **complete**
 
 **Goal:** durable, presentable, and self-explanatory.
 
-- [ ] Error handling and structured logging across the Worker
-- [ ] Branded 404 and 500 pages
-- [ ] Verify every failure mode in `architecture.md` §12 — **especially "Supabase down, cache warm"**, the design's best property
-- [ ] Load sanity check against free-tier ceilings
-- [ ] **Public cost-comparison page** — this build's real running cost against incumbents' published pricing. The showcase piece.
-- [ ] README with setup and self-host instructions
-- [ ] Final pass over `context.md` and `architecture.md` for drift
+- [x] Structured JSON logging with a field-name redaction list; no `console.*` left in `backend/src`
+- [x] Branded 404 and 500 pages, the 500 carrying a reference id that also appears in the log line
+- [x] Every failure mode in `architecture.md` §12 verified in `backend/test/failure-modes.test.ts`
+- [x] Free-tier ceiling check measured against the live database (`tools/check-ceilings.mjs`)
+- [x] Public cost page at `/cost`, with each vendor's own figures, source links, and the date they were read
+- [x] README with setup, self-host, deployment and the traps worth knowing
+- [x] `context.md` and `architecture.md` brought back in step with what was actually built
 
-**Acceptance:** killing the Supabase connection with a warm cache leaves redirects
-working. All documented failure modes behave as written. The cost page cites current
-published competitor pricing, pulled at build time rather than from memory.
+**Acceptance — met.** 114 unit and integration tests including the whole §12 table;
+Supabase simulated as down by pointing `SUPABASE_URL` at an unresolvable host, so the
+real `fetch` failure path runs rather than a mock. With a warm cache the redirect still
+302s, a disabled link still serves its page, and a flagged link still serves its warning.
+With a cold cache it is a 503 with `Retry-After`, never a 404, and the failure does not
+poison the cache.
+
+**Two real defects, both found by measuring rather than reading.**
+
+*The failure-mode suite* found that a KV **read** failure propagated as an unhandled 500
+instead of falling through to Postgres — so the "KV down → slower, still correct" row in
+§12 was simply not true. Fixed in `lib/kv.ts` and `routes/redirect.ts`.
+
+*The ceiling check* found the binding constraint was not the one the design assumed. KV
+allows 100k reads a day but only **1k writes**, and a cache fill is a write. At the
+specified 60-second TTL, one continuously-scanned link refills 1,440 times a day and
+exhausts the entire platform's write budget by itself. The TTL had conflated cache
+freshness with KV's global propagation delay; freshness actually comes from the
+write-through on edit. Raised to 60 minutes — 42 continuously-hot links instead of 1 —
+and unknown slugs are now negative-cached only on a second sighting, so a bot walking the
+namespace costs zero writes.
+
+**The cost page corrected itself before shipping.** The first version filtered out $0
+tiers, which made Rebrandly and Short.io look more expensive than they are — both include
+a custom domain free. On the one page whose entire purpose is honesty about price, that
+would have discredited everything else on it. The free tiers are now in the table with
+the limit that actually bites printed beside them.
 
 ---
 
-## Immediate next step
+## What is left
 
-Phase 0, starting with `.gitignore` — `.env` currently holds a `service_role` key in
-plaintext, and that key bypasses RLS entirely. If it reaches a public repo it has to be
-rotated and every downstream secret re-issued.
+**Phases 7 and 8 — custom domain DNS verification and Cloudflare for SaaS certificate
+issuance.** Both are hard-blocked on registering a domain and adding it to Cloudflare as
+a zone. Nothing else depends on them: everything through phase 10 runs and is tested on
+`localhost:8787`.
 
-Confirm the Cloudflare account and the Next.js deploy target and phase 0 can run
-straight through to a deployed Worker.
+Three smaller items are gated on credentials rather than on work:
+
+| Item | Needs | Effect until then |
+|---|---|---|
+| Deploy the Worker and dashboard | A Cloudflare account | Everything runs and is tested locally |
+| Safe Browsing verdicts | A free Google Cloud API key | Links are reported `unchecked`, never falsely `clean` |
+| Cloudflare rate-limiting rule | A zone, so phase 7 | The in-isolate limiter is what exists; see `backend/src/lib/rate-limit.ts` |
+
+When a domain exists, the order is: add it to Cloudflare → set `PLATFORM_HOSTNAME` and
+insert the matching `domains` row → deploy → phase 7 → phase 8.

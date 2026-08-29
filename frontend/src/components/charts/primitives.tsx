@@ -99,11 +99,13 @@ export function EmptyChart({ message }: { message: string }) {
 export function compact(n: number): string {
   if (!Number.isFinite(n)) return '—';
   if (Math.abs(n) < 1000) return String(n);
-  return new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+  return new Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 }
 
 export function full(n: number): string {
-  return new Intl.NumberFormat('en').format(n);
+  // Locale pinned. 'en' alone resolves to the host's regional variant, and an
+  // Indian-locale render turns 250,000 into 2,50,000 mid-chart.
+  return new Intl.NumberFormat('en-US').format(n);
 }
 
 export function percent(part: number, whole: number): string {

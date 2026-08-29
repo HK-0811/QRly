@@ -415,16 +415,37 @@ Planned: `get_scan_summary`, `get_geo_breakdown`, `get_device_breakdown`,
 
 | Key | Value | TTL |
 |---|---|---|
-| `link:{hostname}:{slug}` | link record + domain status | 60 s |
-| `link:{hostname}:{slug}` | `null` sentinel (unknown slug) | 30 s |
+| `link:{hostname}:{slug}` | link record + domain status | 60 min |
+| `link:{hostname}:{slug}` | `null` sentinel (unknown slug) | 5 min |
+| `hosts:active` | the set of servable hostnames | 5 min |
 | `salt:{YYYY-MM-DD}` | daily visitor-hash salt | 48 h |
 
 One cache read resolves the entire hot path. Domain validity is denormalised into the
 cached link record, so a valid redirect never needs a second lookup.
 
-Free-tier KV allows 100k reads/day and 1k writes/day. Reads scale with scans; writes
-only occur on link edits and cache fills, which stays far below the ceiling at target
-volume.
+**The TTLs were originally 60 s and 30 s. Both were wrong, for different reasons, and
+`tools/check-ceilings.mjs` is what found it.**
+
+Free-tier KV allows 100k reads/day but only **1k writes/day**. A cache fill is a write.
+At a 60-second TTL a single continuously-scanned link refills 1,440 times a day and
+exhausts the entire daily write budget on its own — one hot link, and the cache stops
+working platform-wide.
+
+The 60-second figure had conflated two unrelated things. Freshness after an edit comes
+from the **write-through** in `routes/links.ts`, which pushes the new value the moment a
+link changes; the TTL has nothing to do with it. The "~60 s" the dashboard quotes is
+Workers KV's *global propagation* delay, a property of KV that no TTL affects. The TTL is
+only a backstop for a row changed outside the Worker. At an hour, a hot link costs 24
+writes a day and roughly forty can stay continuously hot.
+
+The 30-second negative TTL was impossible regardless: KV refuses any `expirationTtl`
+below 60.
+
+**Negative caching is admitted on the second sighting, not the first.** A bot walking
+random slugs would otherwise cost one KV write per probe, and a thousand probes is the
+whole daily budget. Almost none of those slugs are ever requested twice, so caching the
+first miss buys nothing. A genuinely mistyped code still gets cached, because people
+retry. See `shouldCacheMiss` in `backend/src/lib/kv.ts`.
 
 ---
 
@@ -512,9 +533,10 @@ read-before-write.
 | Malicious destinations | Safe Browsing on create + weekly. Flagged links serve a warning page, preserving the printed QR. |
 | Credential leak | `service_role` only in Worker secrets. Browser only ever holds the `anon` key. |
 | Cross-tenant data access | RLS on every table, keyed on `auth.uid()`. |
-| Scan flooding | Per-IP-hash and per-link rate limits. |
+| Scan flooding | Per-client-and-slug rate limits on redirects, per-account on writes. **Per-isolate, not global** — a correct global limiter needs Durable Objects, which require Workers Paid. See `backend/src/lib/rate-limit.ts`. |
 | Bot inflation | Preview fetchers recorded but flagged, excluded from headline metrics by default. |
 | Cache poisoning | KV written only by the Worker, never from user input directly. |
+| KV write-quota exhaustion | Hostnames resolved against `domains` before any negative-cache write, so a spoofed-`Host` flood writes nothing; unknown slugs cached only on a second sighting, so a namespace walk writes nothing. |
 
 ---
 
@@ -532,6 +554,12 @@ read-before-write.
 
 The consistent principle: **a redirect must survive the failure of everything except
 Cloudflare.**
+
+Every row above is exercised in `backend/test/failure-modes.test.ts`, with Supabase
+simulated as down by pointing `SUPABASE_URL` at a host that does not resolve — the real
+`fetch` failure path, not a mock at a convenient seam. That suite found a genuine defect:
+a KV **read** failure propagated as an unhandled 500 rather than falling through to
+Postgres, so the "KV down → slower, still correct" row was not true until it was fixed.
 
 ---
 

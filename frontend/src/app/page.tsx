@@ -70,6 +70,12 @@ export default async function HomePage() {
             >
               {user ? 'Open dashboard' : 'Create a free account'}
             </Link>
+            <Link
+              href="/cost"
+              className="rounded-md border border-[var(--border-strong)] px-4 py-2.5 text-[14px] font-medium hover:bg-[var(--bg-subtle)]"
+            >
+              See what it costs
+            </Link>
           </div>
         </section>
 
@@ -90,6 +96,9 @@ export default async function HomePage() {
 
         <footer className="border-t border-[var(--border)] py-8 text-[12.5px] text-[var(--text-faint)]">
           A demonstration project. Built on Cloudflare Workers and Supabase.{' · '}
+          <Link href="/cost" className="underline underline-offset-2 hover:text-[var(--text-muted)]">
+            What it costs
+          </Link>{' · '}
           <Link href="/privacy" className="underline underline-offset-2 hover:text-[var(--text-muted)]">
             Privacy
           </Link>
