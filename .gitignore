@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 supabase.md
+cloudflare.md
 .dev.vars
 .dev.vars.*
 !.dev.vars.example

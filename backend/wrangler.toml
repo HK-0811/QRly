@@ -40,31 +40,40 @@ enabled = true
 # non-inheritable in Wrangler anyway, and spelling out the rest means what deploys
 # is readable in one block instead of assembled from two.
 #
-# `name` is set explicitly so the Worker is "qrly" and not "qrly-production" —
-# Wrangler otherwise appends the environment name.
+# `name` is "qrly-backend" to match the Workers Builds project. A mismatch is not
+# fatal — CI overrides it and warns — but a config that disagrees with what it
+# deploys to is a lie waiting to confuse someone. It pairs with "qrly-dashboard".
 # ---------------------------------------------------------------------------
 [env.production]
-name = "qrly"
+name = "qrly-backend"
 workers_dev = true
+
+# One route, deliberately. "*/*" matches every hostname entering the zone, which
+# is what makes custom domains work: a customer CNAMEs qr.theirbrand.com at us,
+# Cloudflare for SaaS terminates TLS for it, and the request arrives inside this
+# zone where this route picks it up. A per-hostname route would mean a deploy per
+# customer. See developers.cloudflare.com → Cloudflare for SaaS → Worker as origin.
+#
+# It also swallows app.qrly.lol, so the dashboard Worker must claim that hostname
+# with its own, more specific route — more specific wins.
+[[env.production.routes]]
+pattern = "*/*"
+zone_name = "qrly.lol"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-# TODO before the first deploy: the hostname this Worker actually serves.
-# Initially "qrly.<your-account-subdomain>.workers.dev", later the custom domain.
-# This value must also exist as a row in the `domains` table — the redirect path
-# resolves the request hostname against that table before it serves anything, so a
-# deploy without the row 404s every scan. That row is a NEW migration; migrations are
-# checksummed and 0004_seed.sql cannot be edited.
-PLATFORM_HOSTNAME = "REPLACE_ME.workers.dev"
-# TODO before the first deploy: where the dashboard is served from. This is the CORS
-# allow-list origin for the API, so a wrong value breaks every write from the dashboard.
-DASHBOARD_ORIGIN = "https://REPLACE_ME.workers.dev"
+# The hostname this Worker serves and the default domain for every new link.
+# A matching row must exist in `domains` — added by migration 0008.
+PLATFORM_HOSTNAME = "qrly.lol"
+# CORS allow-list for /api/*. Comma-separated: the dashboard answers on its
+# workers.dev hostname until app.qrly.lol has DNS, and on both during the switch.
+# Drop the workers.dev entry once the custom domain is live.
+DASHBOARD_ORIGIN = "https://app.qrly.lol,https://qrly-dashboard.himanshukotkar007.workers.dev"
 
-# TODO before the first deploy: `wrangler kv namespace create LINKS_KV` and paste the id.
-# The placeholder below is not a real namespace; it exists so local dev has a binding.
+# Created 2026-08-29 as "qrly-links".
 [[env.production.kv_namespaces]]
 binding = "LINKS_KV"
-id = "0000000000000000000000000000000f"
+id = "118e5de915994da58a00e0915b485b61"
 
 # Daily: Supabase keep-alive (a free project pauses after 7 days idle) and the retention
 # purge. Weekly: the Safe Browsing re-check.

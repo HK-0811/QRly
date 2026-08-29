@@ -13,7 +13,13 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use('/api/*', (c, next) =>
   cors({
-    origin: c.env.DASHBOARD_ORIGIN,
+    // Comma-separated, because the dashboard answers on two origins during a
+    // hostname move: its workers.dev name and its custom domain. Exact matches
+    // only — no wildcards and no reflecting the Origin header back. This list is
+    // what stands between a hostile page and an authenticated write.
+    origin: c.env.DASHBOARD_ORIGIN.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean),
     allowMethods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowHeaders: ['Content-Type', 'Authorization'],
     maxAge: 86400,
