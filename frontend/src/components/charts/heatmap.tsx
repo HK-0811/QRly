@@ -42,7 +42,7 @@ export function LocalTimeHeatmap({ cells }: { cells: HeatmapCell[] }) {
 
   if (total === 0) {
     return (
-      <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-[var(--border-strong)] text-[13px] text-[var(--text-muted)]">
+      <div className="flex h-40 items-center justify-center border border-dashed border-[var(--rule-strong)] text-[13px] text-[var(--text-muted)]">
         No scans with a resolvable timezone yet.
       </div>
     );
@@ -86,7 +86,7 @@ export function LocalTimeHeatmap({ cells }: { cells: HeatmapCell[] }) {
                   return (
                     <td key={hour} className="p-0">
                       <div
-                        className="h-5 w-full cursor-default rounded-[3px] transition-transform hover:scale-[1.18]"
+                        className="h-5 w-full cursor-default  transition-transform hover:scale-[1.18]"
                         style={{ background: cellColor(scans, peak) }}
                         onMouseEnter={(e) => {
                           const box = wrap.current?.getBoundingClientRect();
@@ -124,7 +124,7 @@ export function LocalTimeHeatmap({ cells }: { cells: HeatmapCell[] }) {
           {[0, 0.05, 0.25, 0.45, 0.65, 0.85, 1].map((t) => (
             <span
               key={t}
-              className="size-3 rounded-[2px]"
+              className="size-3 "
               style={{ background: cellColor(t * peak, peak) }}
             />
           ))}

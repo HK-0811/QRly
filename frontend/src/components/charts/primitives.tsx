@@ -45,8 +45,7 @@ export function ChartCard({
   return (
     <section
       className={cn(
-        'viz rounded-lg border border-[var(--border)] bg-[var(--bg-raised)] p-5',
-        'shadow-[var(--shadow-card)]',
+        'viz border border-[var(--rule-mid)] bg-[var(--bg)] p-6',
         className,
       )}
     >
@@ -63,7 +62,7 @@ export function ChartCard({
       {children}
 
       {note && (
-        <p className="mt-4 border-t border-[var(--border)] pt-3 text-[11.5px] leading-relaxed text-[var(--text-faint)]">
+        <p className="mt-4 border-t border-[var(--rule-mid)] pt-3 text-[11.5px] leading-relaxed text-[var(--text-faint)]">
           {note}
         </p>
       )}
@@ -76,7 +75,7 @@ export function Legend({ items }: { items: Array<{ label: string; color: string 
     <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
       {items.map((i) => (
         <li key={i.label} className="flex items-center gap-1.5 text-[12px] text-[var(--text-muted)]">
-          <span className="size-2 rounded-[2px]" style={{ background: i.color }} aria-hidden />
+          <span className="size-2 " style={{ background: i.color }} aria-hidden />
           {i.label}
         </li>
       ))}
@@ -86,7 +85,7 @@ export function Legend({ items }: { items: Array<{ label: string; color: string 
 
 export function EmptyChart({ message }: { message: string }) {
   return (
-    <div className="flex h-40 items-center justify-center rounded-md border border-dashed border-[var(--border-strong)] text-[13px] text-[var(--text-muted)]">
+    <div className="flex h-40 items-center justify-center border border-dashed border-[var(--rule-strong)] text-[13px] text-[var(--text-muted)]">
       {message}
     </div>
   );
@@ -129,7 +128,7 @@ export function Tooltip({ state }: { state: TooltipState | null }) {
   return (
     <div
       role="tooltip"
-      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-raised)] px-2.5 py-1.5 text-[12px] leading-snug shadow-lg"
+      className="pointer-events-none absolute z-10 -translate-x-1/2 -translate-y-full border border-[var(--rule-strong)] bg-[var(--bg)] px-2.5 py-1.5 text-[12px] leading-snug shadow-[0_10px_40px_rgba(10,10,10,0.12)]"
       style={{ left: state.x, top: state.y - 8 }}
     >
       {state.content}

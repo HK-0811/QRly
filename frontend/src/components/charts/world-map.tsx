@@ -96,7 +96,7 @@ export function WorldMap({
 
   if (error) {
     return (
-      <div className="flex h-[300px] items-center justify-center rounded-md border border-dashed border-[var(--border-strong)] text-[13px] text-[var(--text-muted)]">
+      <div className="flex h-[300px] items-center justify-center border border-dashed border-[var(--rule-strong)] text-[13px] text-[var(--text-muted)]">
         {error}
       </div>
     );
@@ -130,7 +130,7 @@ export function WorldMap({
               key={i}
               d={d}
               fill={scans > 0 ? choroplethColor(scans, peak) : 'var(--viz-land-empty)'}
-              stroke="var(--bg-raised)"
+              stroke="var(--bg)"
               strokeWidth={isSelected ? 1.6 : 0.5}
               className={scans > 0 && onSelectCountry ? 'cursor-pointer' : undefined}
               onClick={() => {
@@ -173,7 +173,7 @@ export function WorldMap({
                 r={r}
                 fill="var(--viz-series-2)"
                 fillOpacity="0.55"
-                stroke="var(--bg-raised)"
+                stroke="var(--bg)"
                 strokeWidth="1.5"
                 onMouseEnter={(e) => {
                   const box = wrap.current?.getBoundingClientRect();
@@ -204,7 +204,7 @@ export function WorldMap({
         <span className="flex items-center gap-1.5">
           <span className="flex gap-[2px]">
             {[0.08, 0.25, 0.45, 0.7, 1].map((t) => (
-              <span key={t} className="size-3 rounded-[2px]" style={{ background: choroplethColor(t * peak, peak) }} />
+              <span key={t} className="size-3 " style={{ background: choroplethColor(t * peak, peak) }} />
             ))}
           </span>
           Scans per country

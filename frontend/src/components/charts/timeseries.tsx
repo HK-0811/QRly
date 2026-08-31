@@ -45,7 +45,7 @@ export function TimeseriesChart({
 
   if (data.length === 0) {
     return (
-      <div className="flex h-[260px] items-center justify-center rounded-md border border-dashed border-[var(--border-strong)] text-[13px] text-[var(--text-muted)]">
+      <div className="flex h-[260px] items-center justify-center border border-dashed border-[var(--rule-strong)] text-[13px] text-[var(--text-muted)]">
         No scans in this range.
       </div>
     );
@@ -168,13 +168,13 @@ export function TimeseriesChart({
                   <>
                     <div className="font-medium">{formatBucketLong(p.d.bucket, bucket)}</div>
                     <div className="mt-1 flex items-center gap-1.5">
-                      <span className="size-2 rounded-[2px]" style={{ background: SERIES.primary }} />
+                      <span className="size-2 " style={{ background: SERIES.primary }} />
                       <span className="tabular">{full(p.d.scans)}</span>
                       <span className="text-[var(--text-muted)]">scans</span>
                     </div>
                     {showUnique && (
                       <div className="flex items-center gap-1.5">
-                        <span className="size-2 rounded-[2px]" style={{ background: SERIES.secondary }} />
+                        <span className="size-2 " style={{ background: SERIES.secondary }} />
                         <span className="tabular">{full(p.d.unique_visitors)}</span>
                         <span className="text-[var(--text-muted)]">unique</span>
                       </div>
@@ -202,9 +202,9 @@ export function TimeseriesChart({
                   stroke="var(--viz-grid)"
                   strokeWidth="1.5"
                 />
-                <circle cx={p.x} cy={p.yScans} r="4" fill={SERIES.primary} stroke="var(--bg-raised)" strokeWidth="2" />
+                <circle cx={p.x} cy={p.yScans} r="4" fill={SERIES.primary} stroke="var(--bg)" strokeWidth="2" />
                 {showUnique && (
-                  <circle cx={p.x} cy={p.yUnique} r="4" fill={SERIES.secondary} stroke="var(--bg-raised)" strokeWidth="2" />
+                  <circle cx={p.x} cy={p.yUnique} r="4" fill={SERIES.secondary} stroke="var(--bg)" strokeWidth="2" />
                 )}
               </g>
             );

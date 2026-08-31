@@ -3,139 +3,241 @@
 /*
   QRly design tokens.
 
-  The visual language is deliberately technical rather than friendly-SaaS: this is
-  a project whose whole argument is "look at what this actually costs to build."
-  Tight type, real numbers set in tabular figures, restrained colour, and one
-  accent used only where something is genuinely live.
+  The visual language is a technical drawing, not a SaaS app: hairline rules
+  instead of cards, zero radius anywhere, hard offset shadows with no blur, and
+  numbers set in mono at display sizes. Colour is almost entirely absent so that
+  the one accent means something wherever it appears.
+
+  Light only, deliberately. Every surface in this app is a white sheet with rules
+  drawn on it, and a dark counterpart would have to invent a second set of
+  decisions the design does not make. The scanner-facing pages in
+  backend/src/lib/pages.ts are the exception and keep their own palette — they
+  render on a stranger's phone, at night, on a bad connection.
 */
 
 @theme {
-  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', 'Cascadia Code', Menlo, monospace;
+  --font-sans: var(--font-grotesk), system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-mono: var(--font-fragment), ui-monospace, 'SF Mono', Menlo, monospace;
 
-  --color-ink-50: #f6f7f8;
-  --color-ink-100: #eceef1;
-  --color-ink-200: #d7dbe0;
-  --color-ink-300: #b4bbc4;
-  --color-ink-400: #8b95a1;
-  --color-ink-500: #6b7583;
-  --color-ink-600: #545d69;
-  --color-ink-700: #454c55;
-  --color-ink-800: #2b3038;
-  --color-ink-900: #1a1e24;
-  --color-ink-950: #101317;
+  /* Ink.
 
-  --color-accent-400: #4ade9a;
-  --color-accent-500: #16b877;
-  --color-accent-600: #0d9663;
-  --color-accent-700: #0b7550;
+     Five text-bearing steps, and every one of them clears 4.5:1 on white. The
+     ramp used to bottom out at #9a9a9a (2.81:1), which is where captions, hints,
+     table metadata and the whole footer lived — most of the small type in the
+     product was below the legibility floor. The steps were re-spaced downward
+     rather than collapsed, so the hierarchy is the same shape, just readable.
 
-  --color-warn-400: #f5b544;
-  --color-warn-600: #b57708;
+     ink-250 is the only one that fails, deliberately: it is for arrows, glyphs
+     and rules, never for words. */
+  --color-ink-950: #0a0a0a; /* 20.1:1 */
+  --color-ink-800: #2b2b2b; /* 14.2:1 */
+  --color-ink-700: #4a4a4a; /*  8.9:1 */
+  --color-ink-600: #616161; /*  6.2:1 */
+  --color-ink-500: #767676; /*  4.5:1 — the floor for body-sized type */
+  --color-ink-250: #a1a1a1; /*  2.6:1 — glyphs and rules only, never text */
+  --color-ink-200: #e4e4e4;
+  --color-ink-100: #f0f0f0;
+  --color-ink-50: #fcfcfc;
 
-  --color-danger-400: #f87171;
-  --color-danger-500: #ef4444;
-  --color-danger-600: #dc2626;
+  /* One accent, a vermilion. Used only where something is live, selected, or
+     genuinely happening — never decoratively.
+
+     500 is the resting accent (4.8:1 against white, so it carries white type on
+     a button and reads as a link on a sheet). 600 is the pressed state. */
+  --color-accent-500: oklch(0.58 0.215 32);
+  --color-accent-600: oklch(0.48 0.19 32);
+
+  --color-danger-500: #b03030;
 }
 
 :root {
+  color-scheme: light;
+
   --bg: #ffffff;
-  --bg-subtle: #f8f9fa;
-  --bg-raised: #ffffff;
-  --border: #e4e7eb;
-  --border-strong: #d0d5dc;
-  --text: #16191d;
-  --text-muted: #6b7583;
-  --text-faint: #949cab;
-  --shadow-card: 0 1px 2px rgb(16 19 23 / 0.04), 0 1px 3px rgb(16 19 23 / 0.06);
+  --bg-subtle: #fcfcfc;
+
+  /* Three rule weights, and they are load-bearing. Hairlines are how every table,
+     panel and grid in this design is built — there are no card borders. */
+  --rule: rgba(10, 10, 10, 0.08);
+  --rule-mid: rgba(10, 10, 10, 0.12);
+  --rule-strong: rgba(10, 10, 10, 0.2);
+  --rule-ink: #0a0a0a;
+
+  /* Four steps of type, all legible. --text-ghost is not in that list on
+     purpose: it names a colour for glyphs (the arrow between a slug and its
+     destination, a dividing dot), and nothing set in it should be a word. */
+  --text: #0a0a0a;
+  --text-muted: #4a4a4a;
+  --text-soft: #616161;
+  --text-faint: #767676;
+  --text-ghost: #a1a1a1;
+
+  /* Accent surfaces.
+
+     --accent is the only one that may sit under white type. --accent-dim was
+     previously doing that job on button hover, and it cannot: at 60% alpha over
+     white it resolves to #ea806c, which carries white type at 2.7:1. It is a
+     *bar and fill* colour — sparklines, chart columns — and it is named that way
+     now so it stops being reached for as a surface. */
+  --accent: oklch(0.58 0.215 32);
+  --accent-strong: oklch(0.48 0.19 32);
+  --accent-fill: oklch(0.58 0.215 32 / 0.6);
+  --accent-wash: oklch(0.58 0.215 32 / 0.1);
+  --accent-tint: oklch(0.58 0.215 32 / 0.045);
+  --accent-line: oklch(0.58 0.215 32 / 0.35);
+
+  /* Deprecated alias. Kept so a stray reference renders as a fill rather than
+     as a broken variable; new code should say --accent-fill. */
+  --accent-dim: var(--accent-fill);
+
+  /* The signature: an offset block with no blur. Reads as printed registration
+     rather than as elevation. */
+  --shadow-block: 18px 18px 0 oklch(0.58 0.215 32 / 0.1);
+  --shadow-block-sm: 16px 16px 0 oklch(0.58 0.215 32 / 0.1);
+
+  /* The one soft shadow in the product, for the two things that genuinely float
+     above the sheet: the row overflow menu and the edit dialog. Layered and
+     transparent so it reads as lift rather than as a second drawn edge. */
+  --shadow-float:
+    0 1px 1px rgba(10, 10, 10, 0.04), 0 4px 8px rgba(10, 10, 10, 0.05),
+    0 16px 32px rgba(10, 10, 10, 0.08);
+
+  /* Interaction. Named once so hover and press mean the same thing everywhere. */
+  --surface-hover: rgba(10, 10, 10, 0.045);
+  --surface-press: rgba(10, 10, 10, 0.08);
+
+  /* Motion. One curve, three durations. Anything slower than --dur-slow is a
+     staged sequence and gets its own timing at the call site. */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur-fast: 110ms;
+  --dur: 160ms;
+  --dur-slow: 240ms;
+
+  --grid-size: 44px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #0d0f12;
-    --bg-subtle: #14171b;
-    --bg-raised: #16191e;
-    --border: #262b32;
-    --border-strong: #343a43;
-    --text: #e8eaed;
-    --text-muted: #8b95a1;
-    --text-faint: #646c78;
-    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.3), 0 1px 3px rgb(0 0 0 / 0.2);
+/* ---------------------------------------------------------------------------
+   Base
+
+   These live in `@layer base` and that is load-bearing, not tidiness.
+
+   Tailwind v4 declares `@layer theme, base, components, utilities`, and CSS
+   gives *unlayered* rules higher priority than anything in any layer —
+   specificity is only compared within a layer. Every element rule below used to
+   sit outside all of them, which meant they silently beat every Tailwind
+   utility in the product:
+
+     input, button, select, textarea { color: inherit }
+
+   outranked `text-white`, so the primary button rendered near-black type on its
+   near-black ground and its label was invisible. And
+
+     a { color: var(--accent) }
+
+   outranked `text-[var(--text-soft)]`, so every anchor in the app — the header
+   nav, the footer, the link rows, the tab bar — came out vermilion regardless of
+   what it asked for. That is the "colours are wrong in places" this pass was
+   opened to fix, and neither symptom was reachable by editing the component
+   that looked wrong.
+
+   In the layer, ordinary specificity applies again and a utility wins.
+   --------------------------------------------------------------------------- */
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--rule-mid);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+    Line breaking.
+
+    Headings here are short, set large and set tight, which is exactly the case
+    where the browser's greedy breaker leaves one word alone on the last line.
+    Applied to the elements rather than per-heading so a new screen gets it
+    without anyone remembering to. Body copy gets `pretty`, which fixes the
+    orphan and leaves the rest of the paragraph alone.
+  */
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* The accent is the default link colour, and any anchor that wants to be
+     something else now just says so with a utility. */
+  a {
+    color: var(--accent);
+    text-decoration: none;
+    transition: color var(--dur) var(--ease);
+  }
+  a:hover {
+    color: var(--accent-strong);
+  }
+
+  input,
+  button,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  /*
+    Focus.
+
+    This used to be `input:focus { outline: none }` with nothing put back, so
+    every field in the product — including the one field the landing page is
+    built around — could be focused with no visible sign of it. Keyboard
+    navigation was silent.
+
+    :focus-visible only, so clicking a field does not draw a ring the mouse user
+    did not ask for, and the offset keeps it clear of the field's own 1.5px
+    border rather than sitting on top of it.
+  */
+  :where(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: #fff;
   }
 }
 
-* {
-  border-color: var(--border);
-}
+/* ---------------------------------------------------------------------------
+   Data visualisation
 
-html {
-  -webkit-text-size-adjust: 100%;
-}
+   Kept exactly as validated. Series slots 1 and 2 were run through the palette
+   validator against this app's light surface (#ffffff): all six checks pass,
+   worst adjacent CVD deltaE 24.7 against a floor of 8. Restyling the app did not
+   re-run that check, so the hues are unchanged — substituting one here without
+   re-validating is how a chart becomes unreadable for a tenth of its audience.
 
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-sans);
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  font-feature-settings: 'cv02', 'cv03', 'cv04';
-}
+   The accent is deliberately NOT a series colour. It means "live" and "selected"
+   everywhere else in the product, and a chart that spent it on an arbitrary
+   category would break that everywhere at once.
 
-/* Numbers that change in place must not reflow the layout around them. */
-.tabular {
-  font-variant-numeric: tabular-nums;
-}
-
-::selection {
-  background: var(--color-accent-500);
-  color: #fff;
-}
-
-/* One focus treatment everywhere, visible on both themes. */
-:where(a, button, input, select, textarea, [tabindex]):focus-visible {
-  outline: 2px solid var(--color-accent-500);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-@keyframes qrly-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-.animate-in {
-  animation: qrly-fade-up 180ms cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-in {
-    animation: none;
-  }
-  *,
-  *::before,
-  *::after {
-    transition-duration: 0.01ms !important;
-  }
-}
-
-/*
-  Data-visualisation tokens.
-
-  Series slots 1 and 2 are the reference palette's blue and orange, validated with
-  the palette validator against this app's own surfaces (#ffffff light,
-  #16191e dark): all six checks pass in both modes, worst adjacent CVD ΔE 24.7
-  light / 26.8 dark against a floor of 8. Substituting hues here without re-running
-  that check is how a chart becomes unreadable for a tenth of its audience.
-
-  The ramp is a single hue, light → dark, because every scale that uses it encodes
-  magnitude. A rainbow would imply the steps are unordered categories.
-*/
+   The ramp is a single hue, light to dark, because every scale that uses it
+   encodes magnitude. A rainbow would imply the steps are unordered categories.
+   --------------------------------------------------------------------------- */
 :root {
   --viz-series-1: #2a78d6;
   --viz-series-2: #eb6834;
@@ -148,27 +250,185 @@ body {
   --viz-ramp-6: #104281;
 
   --viz-grid: #e8eaee;
-  --viz-muted: #8b95a1;
-  --viz-land-empty: #eef0f3;
-  --viz-empty-cell: #f1f3f5;
+  --viz-muted: #767676;
+  --viz-land-empty: #f0f0f0;
+  --viz-empty-cell: #f4f5f6;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Stepped for the dark surface, not an automatic inversion of the light set. */
-    --viz-series-1: #3987e5;
-    --viz-series-2: #d95926;
+/* ---------------------------------------------------------------------------
+   Component classes
 
-    --viz-ramp-1: #12233b;
-    --viz-ramp-2: #173156;
-    --viz-ramp-3: #1c4276;
-    --viz-ramp-4: #2358a0;
-    --viz-ramp-5: #2f74c9;
-    --viz-ramp-6: #5b9ae8;
+   In `@layer components` for the same reason the base rules are in `@layer
+   base`: unlayered, `.eyebrow` outranked every Tailwind utility, so
+   `className="eyebrow text-[var(--accent)]"` — which the create screen uses to
+   mark a code as finished — rendered in the eyebrow's own grey. The utility now
+   wins, which is what a utility is for.
+   --------------------------------------------------------------------------- */
+@layer components {
+  /* Numbers that change in place must not reflow the layout around them. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
 
-    --viz-grid: #24282e;
-    --viz-muted: #7a838f;
-    --viz-land-empty: #1c2026;
-    --viz-empty-cell: #191d22;
+  /* Display numerals: mono, tight, and optically aligned by removing the leading. */
+  .numeral {
+    font-family: var(--font-mono);
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* The small uppercase mono label that titles every section in this design. */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+
+  /* -------------------------------------------------------------------------
+     Hairline grid
+
+     Panels are not bordered boxes. They are cells sitting on a ruled ground:
+     the container paints the rule colour, and a 1px gap lets it through between
+     cells. One rule between two cells rather than two abutting borders, which
+     is what keeps the drawing from thickening wherever panels meet.
+     ------------------------------------------------------------------------- */
+  .hairline {
+    display: grid;
+    gap: 1px;
+    background: var(--rule-mid);
+    border: 1px solid var(--rule-mid);
+  }
+  .hairline > * {
+    background: var(--bg);
+  }
+
+  /* Wrapped fields (the landing hero, the create form) carry their border on a
+     parent, so the focus ring has to be drawn there rather than on the input. */
+  .focus-frame:focus-within {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Motion
+
+   Every animation here describes something the product is actually doing. The
+   QR assembling itself is the loading state; there is no spinner on the create
+   path, because a spinner would say nothing about what is being built.
+   --------------------------------------------------------------------------- */
+@keyframes mod {
+  from {
+    opacity: 0;
+    transform: scale(0.3);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes scanline {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(var(--scan-distance, 280px));
+  }
+}
+
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes blink {
+  0%,
+  60% {
+    opacity: 1;
+  }
+  61%,
+  100% {
+    opacity: 0.15;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -180% 0;
+  }
+  100% {
+    background-position: 180% 0;
+  }
+}
+
+@keyframes spinDash {
+  to {
+    stroke-dashoffset: -64;
+  }
+}
+
+@layer components {
+  .animate-rise {
+    animation: riseIn 400ms var(--ease) both;
+  }
+
+  /*
+    Staggered entrance.
+
+    A screen that fades in as one block announces that a page loaded. A screen
+    whose parts arrive in reading order announces what is on it. `.stagger`
+    marks the container; each child reads its own index off --i and offsets from
+    there.
+
+    60ms, not the usual 100: the hero has five parts, and at 100ms the last one
+    lands nearly half a second after the first, which stops reading as a
+    sequence and starts reading as lag.
+  */
+  .stagger > * {
+    animation: riseIn 460ms var(--ease) both;
+    animation-delay: calc(var(--i, 0) * 60ms);
+  }
+
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      rgba(10, 10, 10, 0.05) 25%,
+      oklch(0.58 0.215 32 / 0.12) 50%,
+      rgba(10, 10, 10, 0.05) 75%
+    );
+    background-size: 220% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  /*
+    The press squeeze is displacement, not timing: shortening its duration just
+    makes it instant rather than absent. Every button that has one also carries
+    `motion-reduce:active:scale-100`, but which of two same-specificity Tailwind
+    variants wins depends on the generated order, and this is not a thing to
+    leave to that. `!important` here settles it and cannot be lost.
+  */
+  *:active {
+    scale: 1 !important;
   }
 }

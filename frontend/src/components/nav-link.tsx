@@ -14,13 +14,27 @@ export function NavLink({ href, children }: { href: string; children: ReactNode 
       href={href}
       aria-current={active ? 'page' : undefined}
       className={cn(
-        'rounded-md px-2.5 py-1.5 text-[13.5px] font-medium transition-colors',
-        active
-          ? 'bg-[var(--bg-subtle)] text-[var(--text)]'
-          : 'text-[var(--text-muted)] hover:text-[var(--text)]',
+        // The active item is marked by an accent rule under it rather than a
+        // filled pill: nothing else in this design is a filled pill, and one
+        // here would read as a button.
+        //
+        // The rule is a pseudo-free child element instead of a border so it can
+        // grow from the left on hover. A border can only appear, and an
+        // underline that blinks into existence reads as a rendering glitch.
+        'group relative inline-flex min-h-[40px] items-center whitespace-nowrap',
+        'transition-colors duration-[var(--dur)] ease-[var(--ease)]',
+        active ? 'text-[var(--text)]' : 'text-[var(--text-faint)] hover:text-[var(--text)]',
       )}
     >
       {children}
+      <span
+        aria-hidden
+        className={cn(
+          'absolute inset-x-0 bottom-[6px] h-[1.5px] origin-left bg-[var(--accent)]',
+          'transition-transform duration-[var(--dur-slow)] ease-[var(--ease)]',
+          active ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100',
+        )}
+      />
     </Link>
   );
 }

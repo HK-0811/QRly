@@ -59,7 +59,7 @@ export function BarList({
                     }
                   : {})}
                 className={cn(
-                  'relative flex w-full items-center gap-3 rounded px-2 py-1.5 text-left',
+                  'relative flex w-full items-center gap-3 px-2 py-1.5 text-left',
                   onSelect && 'cursor-pointer transition-colors hover:bg-[var(--bg-subtle)]',
                   isSelected && 'bg-[var(--bg-subtle)]',
                 )}
@@ -68,7 +68,7 @@ export function BarList({
                     label never squeezes the plot into uselessness. */}
                 <span
                   aria-hidden
-                  className="absolute inset-y-0.5 left-0 rounded-[3px]"
+                  className="absolute inset-y-0.5 left-0 "
                   style={{
                     width: `${Math.max(2, (row.scans / peak) * 100)}%`,
                     background: 'var(--viz-series-1)',
@@ -91,7 +91,7 @@ export function BarList({
       </ul>
 
       {remainder > 0 && (
-        <p className="mt-2 border-t border-[var(--border)] pt-2 text-[12px] text-[var(--text-muted)]">
+        <p className="mt-2 border-t border-[var(--rule-mid)] pt-2 text-[12px] text-[var(--text-muted)]">
           <span className="tabular">{full(remainder)}</span> more across{' '}
           <span className="tabular">{rows.length - max}</span> other{' '}
           {rows.length - max === 1 ? 'value' : 'values'}
