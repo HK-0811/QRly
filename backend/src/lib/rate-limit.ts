@@ -54,6 +54,18 @@ export const API_WRITE_LIMIT: Limit = { max: 60, windowSeconds: 60 };
 /** Redirects: one client scanning one link over and over. */
 export const REDIRECT_LIMIT: Limit = { max: 120, windowSeconds: 60 };
 
+/**
+ * Anonymous creation: the only unauthenticated write in the product.
+ *
+ * Much tighter than the signed-in limit, and for a different reason. An
+ * authenticated caller who abuses the API can be identified and their rows are
+ * already attributable; an anonymous one cannot, and every row they create sits
+ * in the database for thirty days. Ten is well above what a person making a code
+ * for a poster will ever need in a minute, and far below what makes a scripted
+ * flood worth writing.
+ */
+export const ANON_CREATE_LIMIT: Limit = { max: 10, windowSeconds: 60 };
+
 export function rateLimit(key: string, limit: Limit, now = Date.now()): RateLimitResult {
   const windowMs = limit.windowSeconds * 1000;
 

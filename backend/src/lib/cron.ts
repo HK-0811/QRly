@@ -81,6 +81,20 @@ export async function purgeRetention(env: Env): Promise<Record<string, unknown>>
 }
 
 /**
+ * Delete anonymous codes nobody claimed within thirty days.
+ *
+ * Retention above cannot reach these: it joins scan_events to profiles through
+ * user_id, and an unclaimed link has none. Without this sweep the one
+ * unauthenticated write in the product would accumulate rows forever.
+ *
+ * Deleting the link cascades to its saved design and its whole scan history.
+ */
+export async function purgeUnclaimed(env: Env): Promise<Record<string, unknown>> {
+  const removed = await rpc<number>(env, 'purge_unclaimed_links', {});
+  return { unclaimed_links_deleted: removed };
+}
+
+/**
  * Weekly Safe Browsing re-check.
  *
  * A destination that was clean when the link was created can be compromised
@@ -164,6 +178,7 @@ export async function handleScheduled(event: ScheduledController, env: Env): Pro
       await run(env, 'keep_alive', () => keepAlive(env));
       await run(env, 'rotate_salt', () => rotateSalt(env));
       await run(env, 'purge_retention', () => purgeRetention(env));
+      await run(env, 'purge_unclaimed', () => purgeUnclaimed(env));
       break;
 
     case WEEKLY:

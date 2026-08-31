@@ -56,7 +56,8 @@ export interface Domain {
 
 export interface Link {
   id: string;
-  user_id: string;
+  /** Null while the code is unclaimed. See migration 0009. */
+  user_id: string | null;
   domain_id: string;
   slug: string;
   destination_url: string;
@@ -65,6 +66,9 @@ export interface Link {
   expires_at: string | null;
   safe_browsing_status: SafeBrowsingStatus;
   safe_browsing_checked_at: string | null;
+  /** The credential that attaches an unclaimed code to an account. Null once claimed. */
+  claim_token: string | null;
+  claimed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -82,7 +86,8 @@ export interface QrStyle {
 
 export interface QrCode {
   id: string;
-  user_id: string;
+  /** Null while the code it belongs to is unclaimed. */
+  user_id: string | null;
   link_id: string;
   locked_domain_id: string;
   label: string | null;
@@ -101,7 +106,8 @@ export interface QrCode {
  */
 export interface CachedLink {
   id: string;
-  user_id: string;
+  /** Null for an unclaimed code, which still redirects and still records scans. */
+  user_id: string | null;
   domain_id: string;
   qr_id: string | null;
   destination_url: string;

@@ -40,6 +40,7 @@ export const DASHBOARD_SEGMENTS = new Set([
   'forgot-password',
   'reset-password',
   'auth', // /auth/callback — the Supabase session handoff
+  'create', // /create and /create/design — the signed-out creation flow
   'links',
   'analytics',
   'domains',

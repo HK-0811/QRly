@@ -14,7 +14,7 @@ import { createMiddleware } from 'hono/factory';
 import type { CachedLink, CreateLinkBody, Domain, Link, UpdateLinkBody } from '../types';
 import type { Env } from '../env';
 import { requireAuth, type AuthVariables } from '../lib/auth';
-import { selectOne, insert, update, remove, DbError } from '../lib/supabase';
+import { selectOne, insert, update, remove, rpc, DbError } from '../lib/supabase';
 import { validateDestination } from '../lib/url-safety';
 import { generateSlug, validateCustomSlug } from '../lib/slug';
 import { invalidateQuietly } from '../lib/kv';
@@ -55,6 +55,9 @@ links.use('/links', limitWrites);
 links.use('/links/*', limitWrites);
 
 const SLUG_RETRY_LIMIT = 5;
+
+/** Claim tokens are v4 uuids. Rejecting the shape early keeps junk out of the RPC. */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function toCached(link: Link, domainActive: boolean, qrId: string | null = null): CachedLink {
   return {
@@ -100,57 +103,80 @@ async function screenLink(
 }
 
 // ---------------------------------------------------------------------------
-// POST /api/links
+// Creation
+//
+// Shared by the authenticated route and the anonymous one. The only differences
+// between them are the owner (an id, or null for an unclaimed code) and whether a
+// custom domain may be named — so those are the only two parameters, and every
+// validation, collision retry and cache seed below is provably the same code on
+// both paths rather than two implementations that drift.
 // ---------------------------------------------------------------------------
 
-links.post('/links', async (c) => {
-  const user = c.get('user');
+export interface CreateResult {
+  status: 201 | 400 | 404 | 409 | 500 | 503;
+  body: Record<string, unknown>;
+}
 
-  let body: CreateLinkBody;
-  try {
-    body = await c.req.json<CreateLinkBody>();
-  } catch {
-    return c.json({ error: 'invalid_body', message: 'Expected a JSON body.' }, 400);
-  }
+export async function createLink(
+  env: Env,
+  // Only waitUntil is used, and Hono's ExecutionContext is not structurally the
+  // same type as the Workers global. Asking for the one method both provide keeps
+  // this callable from a route handler and from a test with a two-line stub.
+  ctx: { waitUntil(promise: Promise<unknown>): void },
+  opts: { userId: string | null; body: CreateLinkBody; claimToken?: string },
+): Promise<CreateResult> {
+  const { userId, body, claimToken } = opts;
 
   const destination = validateDestination(body.destination_url);
   if (!destination.ok) {
-    return c.json({ error: destination.reason, message: destination.message }, 400);
+    return { status: 400, body: { error: destination.reason, message: destination.message } };
   }
 
   // Resolve the target domain.
   let domain: Domain | null = null;
   if (body.domain_id) {
+    // An anonymous caller has no account, so it can own no custom domain. The
+    // database trigger would refuse the insert anyway; refusing here turns a
+    // 500 into a sentence that says what went wrong.
+    if (userId === null) {
+      return {
+        status: 400,
+        body: {
+          error: 'domain_requires_account',
+          message: 'Custom domains belong to an account. Create the code, then claim it.',
+        },
+      };
+    }
     const found = await selectOne<Domain>(
-      c.env,
+      env,
       `domains?id=eq.${encodeURIComponent(body.domain_id)}&select=*`,
     );
-    if (!found || (found.is_custom && found.user_id !== user.id)) {
-      return c.json({ error: 'domain_not_found', message: 'That domain does not exist.' }, 404);
+    if (!found || (found.is_custom && found.user_id !== userId)) {
+      return { status: 404, body: { error: 'domain_not_found', message: 'That domain does not exist.' } };
     }
     if (!found.is_active) {
-      return c.json(
-        {
+      return {
+        status: 400,
+        body: {
           error: 'domain_inactive',
           message: 'That domain is not verified yet. Finish DNS setup before creating links on it.',
         },
-        400,
-      );
+      };
     }
     domain = found;
   } else {
     domain = await selectOne<Domain>(
-      c.env,
-      `domains?hostname=eq.${encodeURIComponent(c.env.PLATFORM_HOSTNAME)}&is_active=eq.true&select=*`,
+      env,
+      `domains?hostname=eq.${encodeURIComponent(env.PLATFORM_HOSTNAME)}&is_active=eq.true&select=*`,
     );
     if (!domain) {
-      return c.json(
-        {
+      return {
+        status: 500,
+        body: {
           error: 'no_platform_domain',
-          message: `No active domain row exists for ${c.env.PLATFORM_HOSTNAME}.`,
+          message: `No active domain row exists for ${env.PLATFORM_HOSTNAME}.`,
         },
-        500,
-      );
+      };
     }
   }
 
@@ -158,13 +184,13 @@ links.post('/links', async (c) => {
   if (body.expires_at) {
     const when = new Date(body.expires_at);
     if (Number.isNaN(when.getTime())) {
-      return c.json({ error: 'invalid_expiry', message: 'That expiry date is not valid.' }, 400);
+      return { status: 400, body: { error: 'invalid_expiry', message: 'That expiry date is not valid.' } };
     }
     if (when.getTime() <= Date.now()) {
-      return c.json(
-        { error: 'invalid_expiry', message: 'The expiry date has to be in the future.' },
-        400,
-      );
+      return {
+        status: 400,
+        body: { error: 'invalid_expiry', message: 'The expiry date has to be in the future.' },
+      };
     }
     expiresAt = when.toISOString();
   }
@@ -172,7 +198,7 @@ links.post('/links', async (c) => {
   const custom = body.slug !== undefined && body.slug !== null && body.slug !== '';
   if (custom) {
     const check = validateCustomSlug(body.slug);
-    if (!check.ok) return c.json({ error: check.reason, message: check.message }, 400);
+    if (!check.ok) return { status: 400, body: { error: check.reason, message: check.message } };
   }
 
   const title = typeof body.title === 'string' && body.title.trim() ? body.title.trim().slice(0, 200) : null;
@@ -184,44 +210,53 @@ links.post('/links', async (c) => {
     const slug = custom ? (body.slug as string).trim() : generateSlug();
 
     try {
-      const [created] = await insert<Link>(c.env, 'links', {
-        user_id: user.id,
+      const [created] = await insert<Link>(env, 'links', {
+        user_id: userId,
         domain_id: domain.id,
         slug,
         destination_url: destination.url,
         title,
         is_active: body.is_active ?? true,
         expires_at: expiresAt,
+        // The check constraint in migration 0009 makes these two states the only
+        // legal ones, so there is nothing to get wrong here.
+        ...(userId === null ? { claim_token: claimToken } : {}),
       });
 
       if (!created) throw new Error('insert returned no row');
 
       // Seed the cache so the very first scan is a hit, not a cold Postgres read.
-      await invalidateQuietly(
-        c.env,
-        domain.hostname,
-        created.slug,
-        toCached(created, domain.is_active),
-      );
+      await invalidateQuietly(env, domain.hostname, created.slug, toCached(created, domain.is_active));
 
       // Safe Browsing runs after the response is committed. It is a third-party
       // network call, and link creation must not depend on Google being up. A
       // link created a second before the verdict arrives is served as unchecked,
       // which is what it is.
-      c.executionCtx.waitUntil(
-        screenLink(c.env, created, domain.hostname, domain.is_active).catch((err) =>
+      ctx.waitUntil(
+        screenLink(env, created, domain.hostname, domain.is_active).catch((err) =>
           log.warn({ event: 'safe_browsing_screen_failed', link_id: created.id, error: err }),
         ),
       );
 
-      return c.json({ link: created, hostname: domain.hostname, short_url: `https://${domain.hostname}/${created.slug}` }, 201);
+      return {
+        status: 201,
+        body: {
+          link: created,
+          hostname: domain.hostname,
+          short_url: `https://${domain.hostname}/${created.slug}`,
+          ...(claimToken ? { claim_token: claimToken } : {}),
+        },
+      };
     } catch (err) {
       if (err instanceof DbError && err.isUniqueViolation) {
         if (custom) {
-          return c.json(
-            { error: 'slug_taken', message: `"${slug}" is already in use on ${domain.hostname}.` },
-            409,
-          );
+          return {
+            status: 409,
+            body: {
+              error: 'slug_taken',
+              message: `"${slug}" is already in use on ${domain.hostname}.`,
+            },
+          };
         }
         continue; // generated slug collided — try another
       }
@@ -231,10 +266,80 @@ links.post('/links', async (c) => {
 
   // Five cryptographic 7-character collisions in a row means the namespace is
   // genuinely saturated, not that we were unlucky.
-  return c.json(
-    { error: 'slug_exhausted', message: 'Could not allocate a short code. Try again.' },
-    503,
-  );
+  return {
+    status: 503,
+    body: { error: 'slug_exhausted', message: 'Could not allocate a short code. Try again.' },
+  };
+}
+
+// ---------------------------------------------------------------------------
+// POST /api/links
+// ---------------------------------------------------------------------------
+
+links.post('/links', async (c) => {
+  let body: CreateLinkBody;
+  try {
+    body = await c.req.json<CreateLinkBody>();
+  } catch {
+    return c.json({ error: 'invalid_body', message: 'Expected a JSON body.' }, 400);
+  }
+
+  const result = await createLink(c.env, c.executionCtx, {
+    userId: c.get('user').id,
+    body,
+  });
+  return c.json(result.body, result.status);
+});
+
+// ---------------------------------------------------------------------------
+// POST /api/links/claim
+//
+// Attaches an anonymously created code, plus its saved design and every scan it
+// has already collected, to the account making the request.
+// ---------------------------------------------------------------------------
+
+links.post('/links/claim', async (c) => {
+  const user = c.get('user');
+
+  let body: { claim_token?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ error: 'invalid_body', message: 'Expected a JSON body.' }, 400);
+  }
+
+  const token = typeof body.claim_token === 'string' ? body.claim_token.trim() : '';
+  if (!UUID_RE.test(token)) {
+    return c.json({ error: 'invalid_token', message: 'That is not a valid claim token.' }, 400);
+  }
+
+  // The whole operation is one function call so the link and its history move
+  // together, and so two tabs racing the same token cannot both succeed.
+  const claimed = await rpc<Link | null>(c.env, 'claim_link', {
+    p_token: token,
+    p_user: user.id,
+  });
+
+  // A SQL function returning a composite type does NOT come back as JSON null
+  // when it returns NULL — PostgREST serialises it as an object with every
+  // column set to null. That object is truthy, so a plain falsy check would
+  // report a failed claim as a success and hand back a link full of nulls.
+  // The id is the thing to test.
+  if (!claimed?.id) {
+    // Already claimed, expired after thirty days, or never existed. These are
+    // deliberately one message: distinguishing them would let anyone probe which
+    // tokens have ever been real.
+    return c.json(
+      {
+        error: 'claim_failed',
+        message: 'That code has already been claimed, or it expired. Unclaimed codes are kept for 30 days.',
+      },
+      404,
+    );
+  }
+
+  log.info({ event: 'link_claimed', link_id: claimed.id, user_id: user.id });
+  return c.json({ link: claimed }, 200);
 });
 
 // ---------------------------------------------------------------------------

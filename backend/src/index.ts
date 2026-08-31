@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { Env } from './env';
 import { health } from './routes/health';
 import { links } from './routes/links';
+import { anonymous } from './routes/anonymous';
 import { domains } from './routes/domains';
 import { redirect } from './routes/redirect';
 import { handleScheduled } from './lib/cron';
@@ -28,6 +29,7 @@ app.use('/api/*', (c, next) =>
 );
 
 app.route('/api', health);
+app.route('/api', anonymous);
 app.route('/api', links);
 app.route('/api', domains);
 

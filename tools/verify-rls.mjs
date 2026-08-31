@@ -345,6 +345,86 @@ async function main() {
     `status=${anonRes.status} body=${JSON.stringify(anonBody).slice(0, 120)}`,
   );
 
+  // -- claiming an anonymous code -----------------------------------------
+  //
+  // The transition migration 0009 exists for, and that 0011 had to unblock:
+  // guard_link_identity originally refused every change to user_id, which made
+  // claim_link unreachable in practice. The Worker suite could not catch that —
+  // it has no database — so the claim is asserted here, against real triggers.
+  console.log('\nclaiming an anonymous code');
+
+  const platform = domains.body?.find((d) => d.is_custom === false);
+  const anonToken = crypto.randomUUID();
+
+  const anonCreate = await admin('/rest/v1/links', {
+    method: 'POST',
+    headers: { Prefer: 'return=representation' },
+    body: JSON.stringify({
+      user_id: null,
+      domain_id: platform?.id,
+      slug: `anon${stamp}`,
+      destination_url: 'https://example.com/unclaimed',
+      claim_token: anonToken,
+    }),
+  });
+  const anonLink = anonCreate.body?.[0];
+  check('an anonymous link can be created with no owner', Boolean(anonLink?.id),
+    `status=${anonCreate.status} body=${JSON.stringify(anonCreate.body).slice(0, 160)}`);
+
+  if (anonLink?.id) {
+    const hidden = await asUser(A, `/links?id=eq.${anonLink.id}&select=id`);
+    check('an unclaimed link is invisible to every signed-in account',
+      hidden.status === 200 && hidden.body?.length === 0,
+      `status=${hidden.status} body=${JSON.stringify(hidden.body)}`);
+
+    await admin('/rest/v1/scan_events', {
+      method: 'POST',
+      body: JSON.stringify({
+        link_id: anonLink.id,
+        user_id: null,
+        domain_id: platform?.id,
+        event_type: 'redirect',
+      }),
+    });
+
+    const claimed = await admin('/rest/v1/rpc/claim_link', {
+      method: 'POST',
+      body: JSON.stringify({ p_token: anonToken, p_user: A.id }),
+    });
+    check('claim_link attaches an unclaimed code to an account',
+      claimed.status === 200 && claimed.body?.id === anonLink.id,
+      `status=${claimed.status} body=${JSON.stringify(claimed.body).slice(0, 160)}`);
+
+    const visible = await asUser(A, `/links?id=eq.${anonLink.id}&select=id,claim_token`);
+    check('the claimed link is now readable by its new owner', visible.body?.length === 1,
+      `body=${JSON.stringify(visible.body)}`);
+    check('the claim token is spent, so a captured one cannot re-point a live code',
+      visible.body?.[0]?.claim_token === null);
+
+    const movedScans = await asUser(A, `/scan_events?link_id=eq.${anonLink.id}&select=id`);
+    check('scans collected before the claim come with it — the whole promise of the flow',
+      movedScans.body?.length === 1,
+      `saw ${movedScans.body?.length} rows`);
+
+    const reclaim = await admin('/rest/v1/rpc/claim_link', {
+      method: 'POST',
+      body: JSON.stringify({ p_token: anonToken, p_user: B.id }),
+    });
+    // PostgREST serialises a NULL composite as a row of nulls, not as JSON
+    // null. The id is what says "no row" — routes/links.ts checks the same
+    // thing, because the all-null object is truthy and a falsy check there
+    // would report a failed claim as a success.
+    check('a spent token claims nothing on a second attempt',
+      !reclaim.body?.id, `body=${JSON.stringify(reclaim.body).slice(0, 120)}`);
+
+    const transfer = await admin(`/rest/v1/links?id=eq.${anonLink.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ user_id: B.id }),
+    });
+    check('a claimed link still cannot be transferred to another account',
+      transfer.status >= 400,
+      `status=${transfer.status} — a printed code must never change hands`);
+  }
   // -- cascade -------------------------------------------------------------
   console.log('\ncascade on account deletion');
   await admin(`/auth/v1/admin/users/${B.id}`, { method: 'DELETE' });

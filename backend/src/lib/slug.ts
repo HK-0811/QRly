@@ -33,7 +33,7 @@ export const RESERVED_SLUGS = new Set([
   'app', 'dashboard', 'login', 'logout', 'signup', 'signin', 'register',
   'account', 'settings', 'profile', 'billing', 'admin', 'auth', 'reset',
   'verify', 'confirm', 'links', 'link', 'qr', 'qrcode', 'domains', 'domain',
-  'analytics', 'stats', 'reports',
+  'analytics', 'stats', 'reports', 'create', 'new',
   // marketing and legal surface
   'about', 'pricing', 'privacy', 'terms', 'legal', 'contact', 'support',
   'help', 'docs', 'blog', 'status', 'security', 'cost', 'compare',
