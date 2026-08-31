@@ -176,9 +176,17 @@ describe('real DNS resolution', () => {
 // ---------------------------------------------------------------------------
 
 describe('cloudflare client', () => {
+  // Built from explicit objects rather than from the ambient `env`. This used to
+  // assert isConfigured(env) === false, which passed only for as long as nobody put
+  // real credentials in backend/.dev.vars — it was testing the developer's machine,
+  // not the function. Spelling out all four combinations also covers the half-
+  // configured cases, which are the ones that actually reach production.
   it('reports itself unconfigured rather than failing obscurely', () => {
-    expect(isConfigured(env)).toBe(false);
-    expect(isConfigured({ ...env, CLOUDFLARE_API_TOKEN: 't', CLOUDFLARE_ZONE_ID: 'z' })).toBe(true);
+    const both = { ...env, CLOUDFLARE_API_TOKEN: 't', CLOUDFLARE_ZONE_ID: 'z' };
+    expect(isConfigured({ ...both, CLOUDFLARE_API_TOKEN: '', CLOUDFLARE_ZONE_ID: '' })).toBe(false);
+    expect(isConfigured({ ...both, CLOUDFLARE_ZONE_ID: '' })).toBe(false);
+    expect(isConfigured({ ...both, CLOUDFLARE_API_TOKEN: '' })).toBe(false);
+    expect(isConfigured(both)).toBe(true);
   });
 
   it('treats only "active" as a serving certificate', () => {
