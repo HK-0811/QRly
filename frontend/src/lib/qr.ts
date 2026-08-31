@@ -224,9 +224,19 @@ function finderSvg(
 export interface RenderOptions {
   value: string;
   style: QrStyle;
+  /**
+   * Emit one node per module, each with a delay proportional to its distance from
+   * the top-left, so the code assembles diagonally on first paint.
+   *
+   * Off by default and never used for export. The normal path merges horizontal
+   * runs into a single path, which is what keeps the SVG small and the PNG
+   * rasterisation fast; staggering requires giving that up, so it is only worth
+   * it for the one-off reveal after a code is created.
+   */
+  animate?: boolean;
 }
 
-export function renderSvg({ value, style }: RenderOptions): string {
+export function renderSvg({ value, style, animate = false }: RenderOptions): string {
   const ecc = style.errorCorrection;
   const matrix = buildMatrix(value, ecc);
   const margin = Math.max(MIN_MARGIN_MODULES, style.margin);
@@ -265,7 +275,32 @@ export function renderSvg({ value, style }: RenderOptions): string {
 
   const parts: string[] = [];
 
-  if (style.moduleShape !== 'square') {
+  /** Diagonal wavefront: modules on the same anti-diagonal land together. */
+  const delayFor = (r: number, c: number) => (r + c) * 16;
+  const modAnim = (r: number, c: number) =>
+    ` style="animation:mod 320ms cubic-bezier(.2,.8,.3,1) both;animation-delay:${delayFor(
+      r,
+      c,
+    )}ms;transform-origin:center;transform-box:fill-box"`;
+
+  if (animate) {
+    // One node per module. Structural modules stay solid squares here too, for
+    // the same reason they do below: a decoder needs them intact.
+    for (let r = 0; r < matrix.size; r++) {
+      for (let c = 0; c < matrix.size; c++) {
+        if (!dark(r, c)) continue;
+        const a = modAnim(r, c);
+        if (style.moduleShape === 'dots' && !structural(r, c)) {
+          parts.push(
+            `<circle cx="${margin + c + 0.5}" cy="${margin + r + 0.5}" r="${DOT_RADIUS}"${a}/>`,
+          );
+        } else {
+          const rx = style.moduleShape === 'rounded' && !structural(r, c) ? ' rx="0.28"' : '';
+          parts.push(`<rect x="${margin + c}" y="${margin + r}" width="1" height="1"${rx}${a}/>`);
+        }
+      }
+    }
+  } else if (style.moduleShape !== 'square') {
     const solid: string[] = [];
     for (let r = 0; r < matrix.size; r++) {
       for (let c = 0; c < matrix.size; c++) {
@@ -276,7 +311,9 @@ export function renderSvg({ value, style }: RenderOptions): string {
     if (solid.length) parts.push(`<path d="${solid.join('')}"/>`);
   }
 
-  if (style.moduleShape === 'dots') {
+  if (animate) {
+    // Already emitted per-module above.
+  } else if (style.moduleShape === 'dots') {
     for (let r = 0; r < matrix.size; r++) {
       for (let c = 0; c < matrix.size; c++) {
         if (!styleable(r, c)) continue;
@@ -310,10 +347,22 @@ export function renderSvg({ value, style }: RenderOptions): string {
     if (d.length) parts.push(`<path d="${d.join('')}"/>`);
   }
 
+  // Each finder animates as one unit, delayed by its own corner's position, so
+  // the three anchors land with the wavefront rather than all at once.
+  const finderAt = (r: number, c: number) => {
+    const svg = finderSvg(r, c, style.eyeShape, style.fgColor, style.bgColor);
+    if (!animate) return svg;
+    return (
+      `<g style="animation:mod 320ms cubic-bezier(.2,.8,.3,1) both;animation-delay:${
+        (r - margin + (c - margin)) * 16
+      }ms;transform-origin:center;transform-box:fill-box">${svg}</g>`
+    );
+  };
+
   const finders =
-    finderSvg(margin, margin, style.eyeShape, style.fgColor, style.bgColor) +
-    finderSvg(margin, margin + matrix.size - 7, style.eyeShape, style.fgColor, style.bgColor) +
-    finderSvg(margin + matrix.size - 7, margin, style.eyeShape, style.fgColor, style.bgColor);
+    finderAt(margin, margin) +
+    finderAt(margin, margin + matrix.size - 7) +
+    finderAt(margin + matrix.size - 7, margin);
 
   let logo = '';
   if (hasLogo && box) {
@@ -335,7 +384,11 @@ export function renderSvg({ value, style }: RenderOptions): string {
 
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${total} ${total}" ` +
-    `width="${total * 8}" height="${total * 8}" shape-rendering="crispEdges">` +
+    `width="${total * 8}" height="${total * 8}" ` +
+    // crispEdges snaps module boundaries to the pixel grid, which is what keeps
+    // an exported code sharp — but it also fights the sub-pixel scaling of the
+    // reveal animation, so the animated variant renders smoothly instead.
+    `shape-rendering="${animate ? 'auto' : 'crispEdges'}">` +
     `<rect width="${total}" height="${total}" fill="${escapeAttr(style.bgColor)}"/>` +
     `<g fill="${escapeAttr(style.fgColor)}">${parts.join('')}</g>` +
     finders +

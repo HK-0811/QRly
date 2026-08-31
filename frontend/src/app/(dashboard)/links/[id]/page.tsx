@@ -1,9 +1,7 @@
-import Link from 'next/link';
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
-import { QrStudio } from '@/components/qr/qr-studio';
-import { Badge, Card } from '@/components/ui';
-import { CopyButton } from '@/components/copy-button';
+import { LinkDetail } from '@/components/links/link-detail';
 import type { LinkWithDomain, QrCode } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
@@ -41,53 +39,16 @@ export default async function LinkDetailPage({ params }: { params: Promise<{ id:
     .maybeSingle();
 
   const typed = link as LinkWithDomain;
-  const expired = typed.expires_at !== null && new Date(typed.expires_at) <= new Date();
 
   return (
-    <div className="animate-in">
-      <Link
-        href="/links"
-        className="text-[13px] text-[var(--text-muted)] transition-colors hover:text-[var(--text)]"
-      >
-        &larr; All links
-      </Link>
-
-      <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-mono text-[17px] font-semibold tracking-tight">
-              {typed.domains?.hostname}/{typed.slug}
-            </h1>
-            <CopyButton value={shortUrlFor(typed)} />
-            {!typed.is_active && <Badge tone="neutral">Off</Badge>}
-            {expired && <Badge tone="warn">Expired</Badge>}
-            {typed.safe_browsing_status === 'flagged' && <Badge tone="bad">Flagged</Badge>}
-          </div>
-          {typed.title && <p className="mt-1 text-[13.5px] font-medium">{typed.title}</p>}
-          <p className="mt-0.5 truncate text-[13px] text-[var(--text-muted)]">
-            &rarr; {typed.destination_url}
-          </p>
-        </div>
-      </div>
-
-      <div className="mt-8">
-        <QrStudio
-          linkId={typed.id}
-          userId={user.id}
-          domainId={typed.domain_id}
-          hostname={typed.domains?.hostname ?? ''}
-          slug={typed.slug}
-          shortUrl={shortUrlFor(typed)}
-          existing={(qr as QrCode | null) ?? null}
-        />
-      </div>
-
-      <Card className="mt-8 p-5">
-        <h2 className="text-[14px] font-semibold tracking-tight">Scans</h2>
-        <p className="mt-1.5 text-[13px] text-[var(--text-muted)]">
-          Scan collection arrives in phase 5, and the analytics that read it in phase 6.
-        </p>
-      </Card>
-    </div>
+    // useSearchParams reads the active tab, so the tree below needs a boundary.
+    <Suspense fallback={null}>
+      <LinkDetail
+        link={typed}
+        qr={(qr as QrCode | null) ?? null}
+        userId={user.id}
+        shortUrl={shortUrlFor(typed)}
+      />
+    </Suspense>
   );
 }

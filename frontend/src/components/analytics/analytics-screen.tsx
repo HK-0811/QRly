@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   analytics,
   bucketFor,
@@ -33,6 +34,9 @@ interface Data {
   breakdowns: Record<string, BreakdownRow[]>;
 }
 
+/** Six aggregates plus one per breakdown, all fired together on every filter change. */
+const TOTAL_QUERIES = 5 + 18;
+
 const BREAKDOWNS = [
   'country', 'region', 'city', 'as_org', 'network_type', 'colo',
   'device_type', 'device_vendor', 'device_model', 'os_name', 'browser_name',
@@ -41,8 +45,22 @@ const BREAKDOWNS = [
 ] as const;
 
 export function AnalyticsScreen({ links }: { links: LinkWithDomain[] }) {
+  // useSearchParams needs a boundary; the link filter arrives as ?link= from the
+  // per-link page, so someone landing there sees that link already selected.
+  return (
+    <Suspense fallback={null}>
+      <Screen links={links} />
+    </Suspense>
+  );
+}
+
+function Screen({ links }: { links: LinkWithDomain[] }) {
+  const params = useSearchParams();
   const [range, setRange] = useState<RangeKey>('90d');
-  const [filters, setFilters] = useState<ScanFilters>({});
+  const [filters, setFilters] = useState<ScanFilters>(() => {
+    const id = params.get('link');
+    return id ? { link_id: id } : {};
+  });
   const [data, setData] = useState<Data | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -97,12 +115,29 @@ export function AnalyticsScreen({ links }: { links: LinkWithDomain[] }) {
 
   return (
     <div className="animate-in space-y-6">
-      <div>
-        <h1 className="text-[19px] font-semibold tracking-tight">Analytics</h1>
-        <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">
-          Every scan, enriched at the edge. No JavaScript runs on the scanner&rsquo;s device
-          and no consent prompt is shown, because nothing here requires either.
-        </p>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-[28px] font-semibold tracking-[-0.03em] sm:text-[34px]">
+            Everything, together
+          </h1>
+          <p className="mt-2 max-w-[64ch] text-[15px] text-[var(--text-soft)]">
+            Every scan, enriched at the edge. No JavaScript runs on the scanner&rsquo;s device and
+            no consent prompt is shown, because nothing here requires either.
+          </p>
+        </div>
+        {/* The count is not decoration: 23 aggregates resolve independently, and
+            without it a half-drawn page looks broken rather than busy. */}
+        <div className="font-mono text-[12px] text-[var(--text-faint)]">
+          {loading ? (
+            <span>
+              <span className="tabular">{TOTAL_QUERIES}</span> queries · resolving
+            </span>
+          ) : (
+            <span>
+              <span className="tabular">{TOTAL_QUERIES}</span> queries · returned
+            </span>
+          )}
+        </div>
       </div>
 
       <FilterBar
@@ -316,7 +351,7 @@ export function AnalyticsScreen({ links }: { links: LinkWithDomain[] }) {
           note={
             <>
               A camera app opens a link with no referrer at all, so the absence of one is itself the
-              signal that a printed code was scanned rather than a link forwarded.{' '}
+              signal that a printed QR code was scanned rather than a link forwarded.{' '}
               {data ? (
                 <>
                   <span className="tabular">{data.summary.direct_scans.toLocaleString('en-US')}</span> of

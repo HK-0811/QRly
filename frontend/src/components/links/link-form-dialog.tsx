@@ -2,24 +2,32 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '@/lib/api';
-import type { Domain, LinkWithDomain } from '@/lib/types';
+import type { LinkWithDomain } from '@/lib/types';
 import { Button, ErrorText, Field, Input, Note } from '@/components/ui';
 
-type Props = {
-  domains: Domain[];
+/**
+ * Editing only. Creation lives at /create, which is the same screen a signed-out
+ * visitor uses — one implementation of "make a code", not two that drift.
+ *
+ * Slug and domain are absent rather than disabled: they are immutable in the
+ * database, and a greyed-out field invites someone to look for the way to enable
+ * it.
+ */
+export function LinkFormDialog({
+  link,
+  onClose,
+  onSaved,
+}: {
+  link: LinkWithDomain;
   onClose: () => void;
   onSaved: () => void;
-} & ({ mode: 'create'; link?: undefined } | { mode: 'edit'; link: LinkWithDomain });
-
-export function LinkFormDialog({ mode, link, domains, onClose, onSaved }: Props) {
+}) {
   const dialogRef = useRef<HTMLDialogElement>(null);
 
-  const [destination, setDestination] = useState(link?.destination_url ?? '');
-  const [title, setTitle] = useState(link?.title ?? '');
-  const [slug, setSlug] = useState('');
-  const [domainId, setDomainId] = useState(link?.domain_id ?? domains[0]?.id ?? '');
+  const [destination, setDestination] = useState(link.destination_url);
+  const [title, setTitle] = useState(link.title ?? '');
   const [expiresAt, setExpiresAt] = useState(
-    link?.expires_at ? toLocalInputValue(link.expires_at) : '',
+    link.expires_at ? toLocalInputValue(link.expires_at) : '',
   );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -35,24 +43,15 @@ export function LinkFormDialog({ mode, link, domains, onClose, onSaved }: Props)
     setError(null);
 
     try {
-      if (mode === 'create') {
-        await api.createLink({
-          destination_url: destination,
-          title: title.trim() || undefined,
-          slug: slug.trim() || undefined,
-          domain_id: domainId || undefined,
-          expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-        });
-      } else {
-        await api.updateLink(link.id, {
-          destination_url: destination,
-          title: title.trim() || null,
-          expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
-        });
-      }
+      await api.updateLink(link.id, {
+        destination_url: destination,
+        title: title.trim() || null,
+        expires_at: expiresAt ? new Date(expiresAt).toISOString() : null,
+      });
       onSaved();
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+    } finally {
       setBusy(false);
     }
   }
@@ -66,28 +65,25 @@ export function LinkFormDialog({ mode, link, domains, onClose, onSaved }: Props)
         // clicks as clicks on itself, so compare the target.
         if (e.target === dialogRef.current) dialogRef.current?.close();
       }}
-      className="m-auto w-[min(520px,calc(100vw-2rem))] rounded-xl border border-[var(--border)] bg-[var(--bg-raised)] p-0 text-[var(--text)] shadow-2xl backdrop:bg-black/40 backdrop:backdrop-blur-[2px]"
+      className="m-auto w-[min(540px,calc(100vw-2rem))] border border-[var(--rule-ink)] bg-[var(--bg)] p-0 text-[var(--text)] backdrop:bg-[rgba(10,10,10,0.4)] backdrop:backdrop-blur-[2px]"
     >
-      <form onSubmit={submit} className="p-5">
-        <h2 className="text-[16px] font-semibold tracking-tight">
-          {mode === 'create' ? 'New link' : 'Edit link'}
+      <form onSubmit={submit} className="p-7">
+        <div className="eyebrow mb-2">Edit</div>
+        <h2 className="font-mono text-[19px] tracking-[-0.02em]">
+          {link.domains?.hostname}/{link.slug}
         </h2>
-        {mode === 'edit' && (
-          <p className="mt-0.5 font-mono text-[12.5px] text-[var(--text-muted)]">
-            {link.domains?.hostname}/{link.slug}
-          </p>
-        )}
 
-        <div className="mt-5 space-y-4">
+        <div className="mt-7 space-y-6">
           <Field
             label="Destination URL"
             htmlFor="destination"
-            hint="Where the code sends people. You can change this any time without reprinting."
+            hint="Where the QR code sends people. Changing this reprints nothing — the QR code itself stays exactly as it is."
           >
             <Input
               id="destination"
               required
               autoFocus
+              variant="ruled"
               value={destination}
               onChange={(e) => setDestination(e.target.value)}
               placeholder="https://example.com/spring-menu"
@@ -97,87 +93,43 @@ export function LinkFormDialog({ mode, link, domains, onClose, onSaved }: Props)
           <Field label="Label" htmlFor="title" hint="Only you see this. Optional.">
             <Input
               id="title"
+              variant="ruled"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Café table tents"
             />
           </Field>
 
-          {mode === 'create' && (
-            <>
-              {domains.length > 1 && (
-                <Field label="Domain" htmlFor="domain">
-                  <select
-                    id="domain"
-                    value={domainId}
-                    onChange={(e) => setDomainId(e.target.value)}
-                    className="w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-raised)] px-3 py-2 text-sm"
-                  >
-                    {domains.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.hostname}
-                        {d.is_custom ? '' : ' (shared)'}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              )}
-
-              <Field
-                label="Custom short code"
-                htmlFor="slug"
-                hint="Leave empty for a generated one. Letters, numbers, hyphens and underscores."
-              >
-                <Input
-                  id="slug"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value)}
-                  placeholder="spring-menu"
-                  className="font-mono"
-                />
-              </Field>
-            </>
-          )}
-
           <Field
             label="Expires"
             htmlFor="expires"
-            hint="After this, the code shows an expired page instead of redirecting. Optional."
+            hint="After this, the QR code shows an expired page instead of redirecting. Optional."
           >
             <Input
               id="expires"
+              variant="ruled"
               type="datetime-local"
               value={expiresAt}
               onChange={(e) => setExpiresAt(e.target.value)}
             />
           </Field>
 
-          {mode === 'edit' && (
-            <Note tone="warn" title="Changes take up to 60 seconds to reach every location">
-              Destinations are cached at Cloudflare&rsquo;s edge so a scan resolves in
-              milliseconds instead of making a round trip to the database. That cache is
-              eventually consistent: for up to a minute, someone scanning in a different part
-              of the world may still land on the old destination. It is not broken — it is
-              catching up.
-            </Note>
-          )}
+          <Note tone="warn" title="Changes take up to 60 seconds to reach every location">
+            Destinations are cached at Cloudflare&rsquo;s edge so a scan resolves in milliseconds
+            instead of making a round trip to the database. That cache is eventually consistent:
+            for up to a minute, someone scanning in a different part of the world may still land on
+            the old destination. It is not broken — it is catching up.
+          </Note>
 
-          {mode === 'create' && (
-            <Note title="The short code is permanent">
-              Once you print a QR code, its hostname and short code can never change &mdash;
-              every printed copy would break. Only the destination stays editable.
-            </Note>
-          )}
-
-          <ErrorText>{error}</ErrorText>
+          {error && <ErrorText>{error}</ErrorText>}
         </div>
 
-        <div className="mt-5 flex justify-end gap-2 border-t border-[var(--border)] pt-4">
+        <div className="mt-7 flex justify-end gap-3 border-t border-[var(--rule)] pt-5">
           <Button type="button" variant="ghost" onClick={() => dialogRef.current?.close()}>
             Cancel
           </Button>
           <Button type="submit" variant="primary" loading={busy}>
-            {mode === 'create' ? 'Create link' : 'Save changes'}
+            Save changes
           </Button>
         </div>
       </form>

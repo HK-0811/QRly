@@ -9,7 +9,7 @@
  * against the project JWKS and then acts with service_role.
  */
 import { createClient } from '@/lib/supabase/client';
-import type { CreateLinkBody, Domain, Link, UpdateLinkBody } from '@/lib/types';
+import type { CreateLinkBody, Domain, Link, QrStyle, UpdateLinkBody } from '@/lib/types';
 
 const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787';
 
@@ -40,13 +40,32 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError('unauthorized', 'Your session has expired. Sign in again.', 401);
   }
 
+  return send<T>(path, init, { Authorization: `Bearer ${session.access_token}` });
+}
+
+/**
+ * The same transport without a session, for the one endpoint that has none.
+ *
+ * Kept as a separate entry point rather than making the token optional in
+ * `request`, so that forgetting to authenticate is a different function call and
+ * not a missing argument.
+ */
+function requestAnonymous<T>(path: string, init: RequestInit = {}): Promise<T> {
+  return send<T>(path, init, {});
+}
+
+async function send<T>(
+  path: string,
+  init: RequestInit,
+  auth: Record<string, string>,
+): Promise<T> {
   let res: Response;
   try {
     res = await fetch(`${BASE}${path}`, {
       ...init,
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
+        ...auth,
         ...(init.headers ?? {}),
       },
     });
@@ -110,6 +129,30 @@ export interface DomainVerification {
 export const api = {
   createLink: (body: CreateLinkBody) =>
     request<CreatedLink>('/api/links', { method: 'POST', body: JSON.stringify(body) }),
+
+  /**
+   * Create a code with no account. The response carries a claim token, which is
+   * the only thing that can ever attach the code to an account — if it is lost,
+   * the code keeps redirecting and becomes uneditable.
+   */
+  createAnonymousLink: (body: CreateLinkBody) =>
+    requestAnonymous<CreatedLink & { claim_token: string }>('/api/anon/links', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+
+  claimLink: (claimToken: string) =>
+    request<{ link: Link }>('/api/links/claim', {
+      method: 'POST',
+      body: JSON.stringify({ claim_token: claimToken }),
+    }),
+
+  /** Persist the design for a code that has no owner yet. Survives the claim. */
+  saveAnonymousQr: (claimToken: string, style: QrStyle) =>
+    requestAnonymous<void>('/api/anon/qr', {
+      method: 'PUT',
+      body: JSON.stringify({ claim_token: claimToken, style }),
+    }),
 
   updateLink: (id: string, body: UpdateLinkBody) =>
     request<UpdatedLink>(`/api/links/${id}`, { method: 'PATCH', body: JSON.stringify(body) }),

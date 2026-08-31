@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { api } from '@/lib/api';
 import type { QrCode, QrStyle } from '@/lib/types';
 import {
   DEFAULT_STYLE,
@@ -11,33 +12,54 @@ import {
   svgToPngBlob,
   download,
 } from '@/lib/qr';
-import { Button, Card, ErrorText, Note, cn } from '@/components/ui';
+import { Button, ErrorText, Spinner, chipClass, segmentClass, cn } from '@/components/ui';
 
 const PNG_SIZES = [512, 1024, 2048];
 const MAX_LOGO_BYTES = 200 * 1024;
 
+/** Four starting points, not a palette. The hex field below is the real control. */
+const SWATCHES = ['#0A0A0A', 'oklch(0.58 0.215 32)', '#1B3A5C', '#5C4B1B'];
+
+type SaveState = 'idle' | 'saving' | 'saved' | 'error';
+
+/**
+ * How the design is persisted.
+ *
+ * `owned` writes straight to Supabase with the reader's own JWT, because RLS
+ * already enforces ownership and there is no cache to invalidate.
+ * `unclaimed` goes through the Worker with the claim token, because the row has
+ * no owner and therefore matches no RLS policy.
+ * `ephemeral` saves nothing — used where there is no token to save against, and
+ * the UI says so rather than pretending.
+ */
+export type StudioTarget =
+  | { kind: 'owned'; linkId: string; userId: string; domainId: string; existing: QrCode | null }
+  | { kind: 'unclaimed'; claimToken: string; existing: QrStyle | null }
+  | { kind: 'ephemeral' };
+
 export function QrStudio({
-  linkId,
-  userId,
-  domainId,
   hostname,
   slug,
   shortUrl,
-  existing,
+  target,
 }: {
-  linkId: string;
-  userId: string;
-  domainId: string;
   hostname: string;
   slug: string;
   shortUrl: string;
-  existing: QrCode | null;
+  target: StudioTarget;
 }) {
-  const [style, setStyle] = useState<QrStyle>({ ...DEFAULT_STYLE, ...(existing?.style ?? {}) });
+  const initial =
+    target.kind === 'owned'
+      ? target.existing?.style
+      : target.kind === 'unclaimed'
+        ? target.existing
+        : null;
+
+  const [style, setStyle] = useState<QrStyle>({ ...DEFAULT_STYLE, ...(initial ?? {}) });
   const [pngSize, setPngSize] = useState(1024);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [save, setSave] = useState<SaveState>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const svg = useMemo(() => {
@@ -51,24 +73,102 @@ export function QrStudio({
 
   const advice = useMemo(() => styleAdvice(style, shortUrl), [style, shortUrl]);
 
-  useEffect(() => {
-    if (!saved) return;
-    const t = setTimeout(() => setSaved(false), 2200);
-    return () => clearTimeout(t);
-  }, [saved]);
+  // ---------------------------------------------------------------------
+  // Persistence
+  //
+  // Autosaved on a trailing debounce. The previous build made this a button,
+  // which meant a code could be downloaded and printed carrying a design that
+  // was never stored — the file existed, the settings did not.
+  // ---------------------------------------------------------------------
+
+  const persist = useCallback(
+    async (next: QrStyle) => {
+      if (target.kind === 'ephemeral') return;
+      setSave('saving');
+      setError(null);
+      try {
+        if (target.kind === 'unclaimed') {
+          await api.saveAnonymousQr(target.claimToken, next);
+        } else {
+          const supabase = createClient();
+          const { error } = target.existing
+            ? await supabase.from('qr_codes').update({ style: next }).eq('id', target.existing.id)
+            : await supabase.from('qr_codes').insert({
+                user_id: target.userId,
+                link_id: target.linkId,
+                locked_domain_id: target.domainId,
+                style: next,
+              });
+          if (error) throw new Error(error.message);
+        }
+        setSave('saved');
+      } catch (err) {
+        setSave('error');
+        setError(err instanceof Error ? err.message : 'Could not save the design.');
+      }
+    },
+    // `existing` is read at call time; the first save creates the row and later
+    // ones update it, which the Supabase upsert semantics above already handle.
+    [target],
+  );
+
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dirty = useRef(false);
 
   function patch(next: Partial<QrStyle>) {
-    setStyle((s) => ({ ...s, ...next }));
-    setSaved(false);
+    setStyle((s) => {
+      const merged = { ...s, ...next };
+      dirty.current = true;
+      if (pending.current) clearTimeout(pending.current);
+      pending.current = setTimeout(() => {
+        dirty.current = false;
+        void persist(merged);
+      }, 700);
+      return merged;
+    });
   }
 
-  async function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
+  useEffect(() => () => { if (pending.current) clearTimeout(pending.current); }, []);
+
+  /** Downloading flushes any pending save first, so the file and the row agree. */
+  async function flush() {
+    if (pending.current) {
+      clearTimeout(pending.current);
+      pending.current = null;
+    }
+    if (dirty.current) {
+      dirty.current = false;
+      await persist(style);
+    }
+  }
+
+  async function downloadPng() {
+    if (!svg) return;
+    setExporting(true);
+    setError(null);
+    try {
+      await flush();
+      download(await svgToPngBlob(svg, pngSize), `${slug}-${pngSize}.png`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Export failed.');
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  async function downloadSvg() {
+    if (!svg) return;
+    await flush();
+    download(new Blob([svg], { type: 'image/svg+xml' }), `${slug}.svg`);
+  }
+
+  function onLogo(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setError(null);
 
     if (file.size > MAX_LOGO_BYTES) {
-      setError('Keep the logo under 200 KB — it is embedded in the code itself, not uploaded.');
+      setError('Keep the logo under 200 KB — it is embedded in the QR code itself, not uploaded.');
       return;
     }
 
@@ -78,277 +178,322 @@ export function QrStudio({
     reader.readAsDataURL(file);
   }
 
-  async function saveStyle() {
-    setSaving(true);
-    setError(null);
-    const supabase = createClient();
-
-    // Reads and this write both go straight to Supabase: no cache to invalidate,
-    // so there is nothing for the Worker to do here (architecture.md §1).
-    const { error } = existing
-      ? await supabase.from('qr_codes').update({ style }).eq('id', existing.id)
-      : await supabase.from('qr_codes').insert({
-          user_id: userId,
-          link_id: linkId,
-          locked_domain_id: domainId,
-          style,
-        });
-
-    if (error) setError(error.message);
-    else setSaved(true);
-    setSaving(false);
-  }
-
-  async function downloadPng() {
-    if (!svg) return;
-    setError(null);
-    try {
-      download(await svgToPngBlob(svg, pngSize), `${slug}-${pngSize}.png`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Export failed.');
-    }
-  }
-
-  function downloadSvg() {
-    if (!svg) return;
-    download(new Blob([svg], { type: 'image/svg+xml' }), `${slug}.svg`);
-  }
-
   return (
-    <div className="grid gap-6 lg:grid-cols-[minmax(0,340px)_1fr]">
-      {/* ---------------- preview ---------------- */}
-      <div className="space-y-4">
-        <Card className="p-5">
+    <div className="grid min-h-[calc(100dvh-71px)] lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+      {/* ------------------------- preview ------------------------- */}
+      <div className="flex min-w-0 flex-col items-center justify-center gap-7 px-6 py-11 pb-24">
+        <div
+          className="border border-[var(--rule-mid)] bg-white p-6"
+          style={{ boxShadow: 'var(--shadow-block)' }}
+        >
           <div
-            className="mx-auto aspect-square w-full max-w-[280px] overflow-hidden rounded-md border border-[var(--border)]"
-            // The SVG is generated in this file from a URL we control; there is
-            // no user-authored markup anywhere in it.
+            className="aspect-square w-[min(360px,70vw)]"
+            // Generated in this file from a URL we control; there is no
+            // user-authored markup anywhere in it.
             dangerouslySetInnerHTML={{ __html: svg ?? '' }}
             data-testid="qr-preview"
           />
-          <p className="mt-4 break-all text-center font-mono text-[12px] text-[var(--text-muted)]">
-            {shortUrl}
-          </p>
-        </Card>
-
-        <div className="flex flex-wrap gap-2">
-          <select
-            value={pngSize}
-            onChange={(e) => setPngSize(Number(e.target.value))}
-            className="h-9 rounded-md border border-[var(--border-strong)] bg-[var(--bg-raised)] px-2 text-[13px]"
-            aria-label="PNG size"
-          >
-            {PNG_SIZES.map((s) => (
-              <option key={s} value={s}>
-                {s} × {s}
-              </option>
-            ))}
-          </select>
-          <Button variant="primary" onClick={downloadPng}>
-            Download PNG
-          </Button>
-          <Button onClick={downloadSvg}>Download SVG</Button>
         </div>
 
-        <Note tone="warn" title="This code is locked to one address forever">
-          The image encodes <span className="font-mono">{hostname}/{slug}</span>. Once it is
-          printed, that address can never change &mdash; every physical copy would break.
-          Only the destination behind it stays editable.
-        </Note>
+        <p className="break-all text-center font-mono text-[13px] text-[var(--text-soft)]">
+          encodes {shortUrl}
+        </p>
+
+        <div className="flex flex-wrap items-center justify-center gap-2.5">
+          <div className="flex font-mono text-[12px]">
+            {PNG_SIZES.map((s, i) => (
+              <button
+                key={s}
+                onClick={() => setPngSize(s)}
+                aria-pressed={pngSize === s}
+                className={segmentClass(pngSize === s, i)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+          <Button variant="primary" size="sm" loading={exporting} onClick={downloadPng}>
+            Download PNG
+          </Button>
+          <Button variant="ghost" size="sm" onClick={downloadSvg}>
+            SVG
+          </Button>
+        </div>
+
+        <div className="flex max-w-[52ch] gap-3.5 border-t border-[var(--rule)] pt-5">
+          <span className="font-mono text-[13px] text-[var(--accent)]" aria-hidden>
+            !
+          </span>
+          <p className="text-[13px] leading-relaxed text-[var(--text-muted)]">
+            This QR code is locked to one address forever. The image encodes{' '}
+            <span className="font-mono">
+              {hostname}/{slug}
+            </span>
+            . Once it is printed, that address can never change — every physical copy would break.
+            Only the destination behind it stays editable.
+          </p>
+        </div>
       </div>
 
-      {/* ---------------- controls ---------------- */}
-      <div className="space-y-5">
-        <Card className="p-5">
-          <h3 className="text-[14px] font-semibold tracking-tight">Appearance</h3>
+      {/* ------------------------- controls ------------------------- */}
+      <aside className="flex min-w-0 flex-col gap-8 border-t border-[var(--rule-mid)] bg-[var(--bg)] px-7 py-8 pb-24 lg:border-l lg:border-t-0">
+        <section>
+          <div className="eyebrow mb-4">Appearance</div>
 
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <ColorField
-              label="Modules"
-              value={style.fgColor}
-              onChange={(v) => patch({ fgColor: v })}
-            />
-            <ColorField
+          <Swatches
+            label="Module colour"
+            value={style.fgColor}
+            onChange={(v) => patch({ fgColor: v })}
+          />
+          <div className="mt-6">
+            <Swatches
               label="Background"
               value={style.bgColor}
               onChange={(v) => patch({ bgColor: v })}
+              swatches={['#FFFFFF', '#FCFCFC', '#F0F0F0', '#0A0A0A']}
             />
           </div>
 
-          <div className="mt-5 grid gap-4 sm:grid-cols-2">
-            <Choice
-              label="Module shape"
-              value={style.moduleShape}
-              onChange={(v) => patch({ moduleShape: v as QrStyle['moduleShape'] })}
-              options={[
-                ['square', 'Square'],
-                ['rounded', 'Rounded'],
-                ['dots', 'Dots'],
-              ]}
-            />
-            <Choice
-              label="Finder shape"
-              value={style.eyeShape}
-              onChange={(v) => patch({ eyeShape: v as QrStyle['eyeShape'] })}
-              options={[
-                ['square', 'Square'],
-                ['rounded', 'Rounded'],
-                ['circle', 'Ring'],
-              ]}
-            />
-          </div>
+          <Choice
+            className="mt-6"
+            label="Module shape"
+            value={style.moduleShape}
+            onChange={(v) => patch({ moduleShape: v as QrStyle['moduleShape'] })}
+            options={[
+              ['square', 'Square'],
+              ['rounded', 'Round'],
+              ['dots', 'Dots'],
+            ]}
+          />
 
-          <div className="mt-5">
-            <Choice
-              label="Error correction"
-              value={style.errorCorrection}
-              onChange={(v) => patch({ errorCorrection: v as QrStyle['errorCorrection'] })}
-              options={[
-                ['L', 'L · 7%'],
-                ['M', 'M · 15%'],
-                ['Q', 'Q · 25%'],
-                ['H', 'H · 30%'],
-              ]}
-            />
-            <p className="mt-1.5 text-[12px] leading-relaxed text-[var(--text-muted)]">
-              How much of the printed code can be damaged, covered or dirty and still
-              decode. Higher levels make the grid denser.
-            </p>
-          </div>
+          <Choice
+            className="mt-6"
+            label="Finder shape"
+            value={style.eyeShape}
+            onChange={(v) => patch({ eyeShape: v as QrStyle['eyeShape'] })}
+            options={[
+              ['square', 'Square'],
+              ['rounded', 'Round'],
+              ['circle', 'Ring'],
+            ]}
+          />
 
-          <div className="mt-5">
-            <label className="block text-[13px] font-medium">
-              Quiet zone{' '}
-              <span className="tabular text-[var(--text-muted)]">{style.margin} modules</span>
-            </label>
+          <Choice
+            className="mt-6"
+            label="Error correction"
+            value={style.errorCorrection}
+            onChange={(v) => patch({ errorCorrection: v as QrStyle['errorCorrection'] })}
+            options={[
+              ['L', 'L'],
+              ['M', 'M'],
+              ['Q', 'Q'],
+              ['H', 'H'],
+            ]}
+          />
+          <p className="mt-2 text-[12px] leading-relaxed text-[var(--text-faint)]">
+            How much of the printed QR code can be damaged, covered or dirty and still decode. Higher
+            levels make the grid denser.
+          </p>
+
+          <div className="mt-6">
+            <div className="mb-2.5 flex justify-between text-[13px] text-[var(--text-muted)]">
+              <span>Quiet zone</span>
+              <span className="font-mono text-[var(--text)]">{style.margin} modules</span>
+            </div>
             <input
               type="range"
               min={0}
               max={8}
               value={style.margin}
               onChange={(e) => patch({ margin: Number(e.target.value) })}
-              className="mt-2 w-full accent-[var(--color-accent-500)]"
+              className="w-full accent-[var(--accent)]"
+              aria-label="Quiet zone in modules"
             />
           </div>
-        </Card>
+        </section>
 
-        <Card className="p-5">
-          <h3 className="text-[14px] font-semibold tracking-tight">Logo</h3>
-
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/jpeg,image/svg+xml,image/webp"
-              onChange={onLogo}
-              className="hidden"
-            />
-            <Button onClick={() => fileRef.current?.click()}>
-              {style.logoDataUrl ? 'Replace image' : 'Add an image'}
-            </Button>
-            {style.logoDataUrl && (
-              <Button
-                variant="ghost"
-                onClick={() => {
-                  patch({ logoDataUrl: null });
-                  if (fileRef.current) fileRef.current.value = '';
-                }}
-              >
-                Remove
-              </Button>
-            )}
-          </div>
+        <section className="border-t border-[var(--rule)] pt-6">
+          <div className="eyebrow mb-4">Logo</div>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml,image/webp"
+            onChange={onLogo}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="w-full border border-dashed border-[rgba(10,10,10,0.28)] px-5 py-5 text-[13px] text-[var(--text-soft)] transition-colors hover:border-[var(--accent)] hover:text-[var(--text)]"
+          >
+            {style.logoDataUrl ? 'Replace image' : 'Drop an image, under 200 KB'}
+          </button>
 
           {style.logoDataUrl && (
             <div className="mt-4">
-              <label className="block text-[13px] font-medium">
-                Size{' '}
-                <span className="tabular text-[var(--text-muted)]">
-                  {Math.round(style.logoSizeRatio * 100)}% of width
+              <div className="mb-2.5 flex justify-between text-[13px] text-[var(--text-muted)]">
+                <span>Size</span>
+                <span className="font-mono text-[var(--text)]">
+                  {Math.round(style.logoSizeRatio * 100)}%
                 </span>
-              </label>
+              </div>
               <input
                 type="range"
                 min={8}
                 max={Math.round(MAX_LOGO_RATIO[style.errorCorrection] * 100)}
                 value={Math.round(style.logoSizeRatio * 100)}
                 onChange={(e) => patch({ logoSizeRatio: Number(e.target.value) / 100 })}
-                className="mt-2 w-full accent-[var(--color-accent-500)]"
+                className="w-full accent-[var(--accent)]"
+                aria-label="Logo size"
               />
-              <p className="mt-1.5 text-[12px] text-[var(--text-muted)]">
-                Capped at {Math.round(MAX_LOGO_RATIO[style.errorCorrection] * 100)}% for error
-                correction level {style.errorCorrection}.
-              </p>
+              <div className="mt-2 flex items-center justify-between">
+                <p className="text-[12px] text-[var(--text-faint)]">
+                  Capped at {Math.round(MAX_LOGO_RATIO[style.errorCorrection] * 100)}% for level{' '}
+                  {style.errorCorrection}.
+                </p>
+                <button
+                  onClick={() => {
+                    patch({ logoDataUrl: null });
+                    if (fileRef.current) fileRef.current.value = '';
+                  }}
+                  className="text-[12px] text-[var(--text-soft)] underline underline-offset-2"
+                >
+                  Remove
+                </button>
+              </div>
             </div>
           )}
 
-          <p className="mt-3 text-[12px] leading-relaxed text-[var(--text-muted)]">
-            The image is embedded into the code itself and never uploaded anywhere.
+          <p className="mt-3 font-mono text-[11px] text-[var(--text-faint)]">
+            Embedded in the file. Never uploaded.
           </p>
-        </Card>
+        </section>
 
-        <Card className="p-5">
-          <h3 className="text-[14px] font-semibold tracking-tight">Scannability</h3>
-          <ul className="mt-3 space-y-2">
+        <section className="border-t border-[var(--rule)] pt-6">
+          <div className="eyebrow mb-4">Scannability</div>
+          <ul className="flex flex-col gap-3">
             {advice.map((a, i) => (
-              <li key={i} className="flex gap-2 text-[12.5px] leading-relaxed">
+              <li key={i} className="flex gap-3 text-[13px] leading-relaxed">
                 <span
                   className={cn(
-                    'mt-[6px] size-1.5 shrink-0 rounded-full',
-                    a.level === 'warn' ? 'bg-warn-400' : 'bg-accent-500',
+                    'font-mono',
+                    a.level === 'warn' ? 'text-[var(--accent)]' : 'text-[var(--text-ghost)]',
                   )}
-                />
-                <span className={a.level === 'warn' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}>
+                  aria-hidden
+                >
+                  {a.level === 'warn' ? '!' : '✓'}
+                </span>
+                <span
+                  className={a.level === 'warn' ? 'text-[var(--text)]' : 'text-[var(--text-muted)]'}
+                >
                   {a.text}
                 </span>
               </li>
             ))}
           </ul>
-        </Card>
+        </section>
 
-        <ErrorText>{error}</ErrorText>
+        {error && <ErrorText>{error}</ErrorText>}
 
-        <div className="flex items-center gap-3">
-          <Button variant="primary" loading={saving} onClick={saveStyle}>
-            {existing ? 'Save style' : 'Save this design'}
-          </Button>
-          {saved && (
-            <span className="text-[12.5px] text-accent-600 dark:text-accent-400">Saved</span>
-          )}
-          <Button variant="ghost" onClick={() => setStyle(DEFAULT_STYLE)}>
+        <div className="mt-auto flex items-center justify-between border-t border-[var(--rule)] pt-5">
+          <SaveIndicator state={save} target={target} />
+          <button
+            onClick={() => {
+              setStyle(DEFAULT_STYLE);
+              dirty.current = true;
+              if (pending.current) clearTimeout(pending.current);
+              pending.current = setTimeout(() => void persist(DEFAULT_STYLE), 700);
+            }}
+            className="text-[13px] text-[var(--text-soft)] underline decoration-[var(--rule-strong)] underline-offset-2 hover:text-[var(--text)]"
+          >
             Reset
-          </Button>
+          </button>
         </div>
-      </div>
+      </aside>
     </div>
   );
 }
 
-function ColorField({
+function SaveIndicator({ state, target }: { state: SaveState; target: StudioTarget }) {
+  if (target.kind === 'ephemeral') {
+    return (
+      <span className="max-w-[26ch] text-[12px] text-[var(--text-faint)]">
+        Not saved anywhere. Download the file, or claim the QR code to keep this design.
+      </span>
+    );
+  }
+
+  const label =
+    state === 'saving'
+      ? 'Saving…'
+      : state === 'error'
+        ? 'Not saved'
+        : state === 'saved'
+          ? 'Saved'
+          : 'Saved automatically. Downloading saves first.';
+
+  return (
+    <span className="flex items-center gap-2.5 text-[12px] text-[var(--text-faint)]">
+      {state === 'saving' ? (
+        <Spinner size={11} />
+      ) : (
+        <span
+          aria-hidden
+          className="size-1.5 rounded-full"
+          style={{
+            background: state === 'error' ? 'var(--color-danger-500)' : 'var(--accent)',
+          }}
+        />
+      )}
+      <span className="max-w-[28ch]">{label}</span>
+    </span>
+  );
+}
+
+function Swatches({
   label,
   value,
   onChange,
+  swatches = SWATCHES,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  swatches?: string[];
 }) {
   return (
     <div>
-      <label className="block text-[13px] font-medium">{label}</label>
-      <div className="mt-1.5 flex items-center gap-2">
+      <div className="mb-2.5 text-[13px] text-[var(--text-muted)]">{label}</div>
+      <div className="flex items-center gap-2.5">
+        {swatches.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => onChange(c)}
+            aria-label={`${label}: ${c}`}
+            aria-pressed={value.toLowerCase() === c.toLowerCase()}
+            className="size-9 shrink-0"
+            style={{
+              background: c,
+              boxShadow:
+                value.toLowerCase() === c.toLowerCase()
+                  ? '0 0 0 1.5px #fff inset, 0 0 0 1.5px #0A0A0A'
+                  : '0 0 0 1px rgba(10,10,10,0.15)',
+            }}
+          />
+        ))}
         <input
           type="color"
-          value={value}
+          value={/^#[0-9a-f]{6}$/i.test(value) ? value : '#000000'}
           onChange={(e) => onChange(e.target.value)}
-          className="size-9 cursor-pointer rounded border border-[var(--border-strong)] bg-transparent p-0.5"
-          aria-label={`${label} colour`}
+          className="size-9 shrink-0 cursor-pointer border border-[var(--rule-strong)] bg-transparent p-0.5"
+          aria-label={`${label}: pick a colour`}
         />
         <input
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="h-9 w-full rounded-md border border-[var(--border-strong)] bg-[var(--bg-raised)] px-2 font-mono text-[12.5px] uppercase"
-          aria-label={`${label} hex`}
+          className="h-9 min-w-0 flex-1 border border-[var(--rule-strong)] px-2 font-mono text-[12px] uppercase"
+          aria-label={`${label} value`}
         />
       </div>
     </div>
@@ -360,28 +505,25 @@ function Choice({
   value,
   onChange,
   options,
+  className,
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: Array<[string, string]>;
+  className?: string;
 }) {
   return (
-    <div>
-      <label className="block text-[13px] font-medium">{label}</label>
-      <div className="mt-1.5 flex rounded-md border border-[var(--border-strong)] p-0.5">
+    <div className={className}>
+      <div className="mb-2.5 text-[13px] text-[var(--text-muted)]">{label}</div>
+      <div className="flex gap-2">
         {options.map(([v, text]) => (
           <button
             key={v}
             type="button"
             onClick={() => onChange(v)}
             aria-pressed={value === v}
-            className={cn(
-              'flex-1 rounded px-2 py-1.5 text-[12.5px] font-medium transition-colors',
-              value === v
-                ? 'bg-[var(--bg-subtle)] text-[var(--text)]'
-                : 'text-[var(--text-muted)] hover:text-[var(--text)]',
-            )}
+            className={chipClass(value === v, 'flex-1 px-2')}
           >
             {text}
           </button>

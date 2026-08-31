@@ -3,7 +3,7 @@
 import type { FilterOptions, RangeKey, ScanFilters } from '@/lib/analytics';
 import { RANGES } from '@/lib/analytics';
 import type { LinkWithDomain } from '@/lib/types';
-import { Button, cn } from '@/components/ui';
+import { Button, segmentClass } from '@/components/ui';
 
 /**
  * Filters, in one row above the charts.
@@ -35,19 +35,14 @@ export function FilterBar({
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex rounded-md border border-[var(--border-strong)] p-0.5">
-          {RANGES.map((r) => (
+        <div className="flex font-mono text-[11px]">
+          {RANGES.map((r, i) => (
             <button
               key={r.key}
               type="button"
               onClick={() => onRange(r.key)}
               aria-pressed={range === r.key}
-              className={cn(
-                'rounded px-2.5 py-1 text-[12.5px] font-medium transition-colors',
-                range === r.key
-                  ? 'bg-[var(--bg-subtle)] text-[var(--text)]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text)]',
-              )}
+              className={segmentClass(range === r.key, i)}
             >
               {r.label.replace('Last ', '')}
             </button>
@@ -125,7 +120,7 @@ export function FilterBar({
             type="checkbox"
             checked={Boolean(filters.include_bots)}
             onChange={(e) => onChange({ include_bots: e.target.checked })}
-            className="size-3.5 accent-[var(--color-accent-500)]"
+            className="size-3.5 accent-[var(--accent)]"
           />
           Include bots and link previews
         </label>
@@ -138,7 +133,7 @@ export function FilterBar({
               key={key}
               type="button"
               onClick={() => onChange({ [key]: null } as Partial<ScanFilters>)}
-              className="inline-flex items-center gap-1.5 rounded border border-[var(--border-strong)] bg-[var(--bg-subtle)] px-2 py-1 text-[12px] transition-colors hover:border-danger-500/40"
+              className="inline-flex items-center gap-1.5 border border-[var(--rule-strong)] px-2.5 py-1 text-[12px] transition-colors hover:border-[var(--color-danger-500)] hover:text-[var(--color-danger-500)]"
             >
               <span className="text-[var(--text-muted)]">{LABELS[key]}</span>
               <span className="font-medium">
@@ -209,7 +204,7 @@ function Select({
       {...rest}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-8 max-w-[190px] rounded-md border border-[var(--border-strong)] bg-[var(--bg-raised)] px-2 text-[12.5px]"
+      className="h-8 max-w-[170px] border-0 border-b border-[var(--rule-strong)] bg-transparent px-1 text-[12.5px] text-[var(--text-muted)] transition-colors hover:border-[var(--rule-ink)] hover:text-[var(--text)]"
     >
       {children}
     </select>
