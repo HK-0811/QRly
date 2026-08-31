@@ -24,52 +24,62 @@ const SHELL = (opts: {
 <meta name="robots" content="noindex,nofollow">
 <title>${opts.title}</title>
 <style>
+  /*
+    Matched to the dashboard's language — hairline rules, no radius, mono for the
+    address — but this file keeps its own dark palette while the app is light
+    only. The app is a tool someone chose to open at a desk; this renders on a
+    stranger's phone, held up to a poster, possibly at night. Respecting their
+    phone's setting costs one media query and is the difference between a
+    readable answer and a white flash in a dark room.
+
+    Still self-contained: no stylesheet, no font request, no JavaScript. One
+    round trip, and it renders on a bad mobile connection.
+  */
   :root { color-scheme: light dark; }
   * { box-sizing: border-box; }
   body {
     margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 24px;
     font: 15px/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    background: #fff; color: #16191d;
+    background: #fff; color: #0A0A0A;
     -webkit-font-smoothing: antialiased;
   }
   main { max-width: 30rem; width: 100%; }
-  .mark { display: flex; align-items: center; gap: 8px; margin-bottom: 28px; opacity: .65; }
-  .mark svg { width: 20px; height: 20px; }
-  .mark span { font-size: 14px; font-weight: 600; letter-spacing: -0.01em; }
-  .dot { width: 7px; height: 7px; border-radius: 50%; background: ${opts.accent}; display: inline-block; margin-right: 8px; vertical-align: 1px; }
-  h1 { margin: 0 0 10px; font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
-  p { margin: 0 0 12px; color: #5b6470; }
+  .mark { display: flex; align-items: center; gap: 8px; margin-bottom: 32px; }
+  .glyph { width: 14px; height: 14px; background: #0A0A0A;
+           box-shadow: 5px 0 0 ${opts.accent}, 0 5px 0 #0A0A0A; }
+  .mark span { font-family: ui-monospace, "SF Mono", Menlo, monospace;
+               font-size: 13px; letter-spacing: 0.14em; padding-left: 8px; }
+  .eyebrow { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px;
+             letter-spacing: 0.1em; text-transform: uppercase; color: ${opts.accent};
+             margin: 0 0 14px; }
+  h1 { margin: 0 0 14px; font-size: 26px; font-weight: 600; letter-spacing: -0.03em;
+       line-height: 1.15; }
+  p { margin: 0 0 12px; color: #565656; }
   .url { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px;
-         word-break: break-all; background: #f4f5f7; border: 1px solid #e4e7eb;
-         border-radius: 6px; padding: 8px 10px; color: #16191d; }
-  .btn { display: inline-block; margin-top: 18px; padding: 9px 14px; border-radius: 6px;
+         word-break: break-all; border: 1px solid rgba(10,10,10,0.12);
+         padding: 10px 12px; color: #0A0A0A; margin-top: 18px; }
+  .btn { display: inline-block; margin-top: 20px; padding: 13px 20px;
          font-size: 14px; font-weight: 500; text-decoration: none;
-         border: 1px solid #d0d5dc; color: #16191d; }
-  .btn-danger { border-color: #f0a6a6; color: #b02a2a; }
-  footer { margin-top: 36px; font-size: 12px; color: #949cab; }
+         border: 1.5px solid rgba(10,10,10,0.2); color: #0A0A0A; }
+  .btn-danger { border-color: rgba(176,48,48,0.4); color: #B03030; }
+  footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid rgba(10,10,10,0.08);
+           font-size: 12px; color: #9A9A9A; }
   @media (prefers-color-scheme: dark) {
-    body { background: #0d0f12; color: #e8eaed; }
-    p { color: #8b95a1; }
-    .url { background: #16191e; border-color: #262b32; color: #e8eaed; }
-    .btn { border-color: #343a43; color: #e8eaed; }
-    .btn-danger { border-color: #6b2d2d; color: #f08c8c; }
-    footer { color: #5a6270; }
+    body { background: #0D0D0D; color: #F0F0F0; }
+    .glyph { background: #F0F0F0; box-shadow: 5px 0 0 ${opts.accent}, 0 5px 0 #F0F0F0; }
+    p { color: #9A9A9A; }
+    .url { border-color: rgba(255,255,255,0.14); color: #F0F0F0; }
+    .btn { border-color: rgba(255,255,255,0.22); color: #F0F0F0; }
+    .btn-danger { border-color: rgba(240,120,120,0.45); color: #F08C8C; }
+    footer { border-top-color: rgba(255,255,255,0.1); color: #6B6B6B; }
   }
 </style>
 </head>
 <body>
 <main>
-  <div class="mark">
-    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
-      <rect x="1" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/>
-      <rect x="14" y="1" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/>
-      <rect x="1" y="14" width="9" height="9" rx="1.5" stroke="currentColor" stroke-width="2"/>
-      <rect x="14.5" y="14.5" width="3.5" height="3.5" fill="currentColor"/>
-      <rect x="19.5" y="19.5" width="3.5" height="3.5" fill="currentColor"/>
-    </svg>
-    <span>QRly</span>
-  </div>
-  <h1><span class="dot"></span>${opts.heading}</h1>
+  <div class="mark"><span class="glyph"></span><span>QRLY</span></div>
+  <p class="eyebrow">${opts.title}</p>
+  <h1>${opts.heading}</h1>
   ${opts.body}
   ${opts.extra ?? ''}
   <footer>This short link is served by QRly.</footer>
@@ -95,10 +105,10 @@ export function notFoundPage(hostname: string, slug: string): Response {
   return new Response(
     SHELL({
       title: 'Link not found',
-      heading: 'This code does not point anywhere',
-      accent: '#8b95a1',
+      heading: 'This QR code does not point anywhere',
+      accent: '#9A9A9A',
       body:
-        `<p>There is no link at this address. The code may have been mistyped, or it may ` +
+        `<p>There is no link at this address. The QR code may have been mistyped, or it may ` +
         `never have existed.</p>` +
         `<div class="url">${esc(hostname)}/${esc(slug)}</div>`,
     }),
@@ -110,10 +120,10 @@ export function disabledPage(hostname: string, slug: string): Response {
   return new Response(
     SHELL({
       title: 'Link turned off',
-      heading: 'This code has been turned off',
-      accent: '#f5b544',
+      heading: 'This QR code has been turned off',
+      accent: 'oklch(0.58 0.215 32)',
       body:
-        `<p>The person who created this link has disabled it for now. The code itself is ` +
+        `<p>The person who created this link has disabled it for now. The QR code itself is ` +
         `still valid &mdash; if they turn it back on, scanning again will work.</p>` +
         `<div class="url">${esc(hostname)}/${esc(slug)}</div>`,
     }),
@@ -134,8 +144,8 @@ export function expiredPage(hostname: string, slug: string, expiredAt: string): 
   return new Response(
     SHELL({
       title: 'Link expired',
-      heading: 'This code has expired',
-      accent: '#f5b544',
+      heading: 'This QR code has expired',
+      accent: 'oklch(0.58 0.215 32)',
       body:
         `<p>The person who created this link set it to stop working after a date that has ` +
         `now passed.</p>${formatted}` +
@@ -162,9 +172,9 @@ export function flaggedPage(hostname: string, slug: string, destination: string)
     SHELL({
       title: 'Warning — unsafe destination',
       heading: 'This link was flagged as unsafe',
-      accent: '#dc2626',
+      accent: '#B03030',
       body:
-        `<p>Google Safe Browsing reports the page behind this code as dangerous &mdash; ` +
+        `<p>Google Safe Browsing reports the page behind this QR code as dangerous &mdash; ` +
         `usually phishing or malware. We have stopped the redirect.</p>` +
         `<p>It was going to send you to:</p>` +
         `<div class="url">${esc(host)}</div>`,
@@ -186,10 +196,10 @@ export function unavailablePage(): Response {
     SHELL({
       title: 'Temporarily unavailable',
       heading: 'This is temporarily unavailable',
-      accent: '#f5b544',
+      accent: 'oklch(0.58 0.215 32)',
       body:
-        `<p>We could not look up where this code goes. This is a problem on our side, not ` +
-        `with the code you scanned. Try again in a moment.</p>`,
+        `<p>We could not look up where this QR code goes. This is a problem on our side, not ` +
+        `with the QR code you scanned. Try again in a moment.</p>`,
     }),
     { status: 503, headers: { ...NO_STORE, 'Retry-After': '30' } },
   );
@@ -207,9 +217,9 @@ export function errorPage(id: string): Response {
     SHELL({
       title: 'Something went wrong',
       heading: 'Something went wrong on our side',
-      accent: '#dc2626',
+      accent: '#B03030',
       body:
-        `<p>This is not a problem with the code you scanned. Trying again usually works.</p>` +
+        `<p>This is not a problem with the QR code you scanned. Trying again usually works.</p>` +
         `<p>If it keeps happening, this reference identifies what failed:</p>` +
         `<div class="url">${esc(id)}</div>`,
     }),
@@ -223,10 +233,10 @@ export function rootPage(dashboardOrigin: string): Response {
     SHELL({
       title: 'QRly',
       heading: 'Nothing to redirect to',
-      accent: '#16b877',
+      accent: 'oklch(0.58 0.215 32)',
       body:
         `<p>This address serves short links. There is no link at the root &mdash; scan a ` +
-        `code or follow a full short URL.</p>`,
+        `QR code or follow a full short link.</p>`,
       extra: `<a class="btn" href="${esc(dashboardOrigin)}">Go to the dashboard</a>`,
     }),
     { status: 404, headers: HTML },
