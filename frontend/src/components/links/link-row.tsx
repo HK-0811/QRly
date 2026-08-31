@@ -6,16 +6,6 @@ import { api, ApiError } from '@/lib/api';
 import type { LinkWithDomain } from '@/lib/types';
 import { Button, cn } from '@/components/ui';
 
-const REDIRECT_ORIGIN = process.env.NEXT_PUBLIC_REDIRECT_ORIGIN ?? 'http://localhost:8787';
-
-/** The printed URL uses the link's own hostname, not this deployment's. */
-export function shortUrlFor(link: LinkWithDomain): string {
-  const hostname = link.domains?.hostname;
-  if (!hostname) return `${REDIRECT_ORIGIN}/${link.slug}`;
-  const scheme = hostname.startsWith('localhost') || hostname.startsWith('127.') ? 'http' : 'https';
-  return `${scheme}://${hostname}/${link.slug}`;
-}
-
 /**
  * One visible action, everything else behind a menu.
  *

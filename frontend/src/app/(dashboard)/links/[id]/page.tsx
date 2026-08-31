@@ -3,14 +3,9 @@ import { notFound } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 import { LinkDetail } from '@/components/links/link-detail';
 import type { LinkWithDomain, QrCode } from '@/lib/types';
+import { shortUrlFor } from '@/lib/origins';
 
 export const dynamic = 'force-dynamic';
-
-function shortUrlFor(link: LinkWithDomain): string {
-  const hostname = link.domains?.hostname ?? 'localhost:8787';
-  const scheme = hostname.startsWith('localhost') || hostname.startsWith('127.') ? 'http' : 'https';
-  return `${scheme}://${hostname}/${link.slug}`;
-}
 
 export default async function LinkDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

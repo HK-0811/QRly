@@ -9,9 +9,10 @@
  * against the project JWKS and then acts with service_role.
  */
 import { createClient } from '@/lib/supabase/client';
+import { API_ORIGIN } from '@/lib/origins';
 import type { CreateLinkBody, Domain, Link, QrStyle, UpdateLinkBody } from '@/lib/types';
 
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8787';
+const BASE = API_ORIGIN;
 
 export class ApiError extends Error {
   constructor(

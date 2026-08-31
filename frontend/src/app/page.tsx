@@ -4,10 +4,10 @@ import { Screen, Wordmark, GUTTER } from '@/components/chrome';
 import { buttonClass } from '@/components/ui';
 import { HeroForm } from '@/components/landing/hero-form';
 import { DEFAULT_STYLE, renderSvg } from '@/lib/qr';
+import { REDIRECT_ORIGIN } from '@/lib/origins';
 
 export const dynamic = 'force-dynamic';
 
-const REDIRECT_ORIGIN = process.env.NEXT_PUBLIC_REDIRECT_ORIGIN ?? 'http://localhost:8787';
 const HERO_SLUG = 'aB3xK9p';
 
 export default async function HomePage() {
