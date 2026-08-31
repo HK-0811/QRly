@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Wordmark } from '@/components/chrome';
 import type { Metadata } from 'next';
 import pricing from '@/data/competitor-pricing.json';
 
@@ -58,14 +59,12 @@ export default function CostPage() {
 
   return (
     <div className="min-h-dvh">
-      <header className="border-b border-[var(--border)]">
-        <div className="mx-auto flex h-14 max-w-4xl items-center px-5">
-          <Link href="/" className="text-[15px] font-semibold tracking-tight">
-            QRly
-          </Link>
+      <header className="border-b border-[var(--rule-mid)]">
+        <div className="mx-auto flex h-16 max-w-4xl items-center px-6">
+          <Wordmark />
           <Link
             href="/privacy"
-            className="ml-auto text-[13px] text-[var(--text-muted)] hover:text-[var(--text)]"
+            className="ml-auto inline-flex min-h-[40px] items-center text-[13px] text-[var(--text-muted)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)]"
           >
             Privacy
           </Link>
@@ -73,7 +72,7 @@ export default function CostPage() {
       </header>
 
       <main className="mx-auto max-w-4xl px-5 py-12">
-        <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-accent-600 dark:text-accent-400">
+        <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-[var(--accent)]">
           $0.00 / month
         </p>
         <h1 className="mt-3 text-[30px] font-semibold leading-[1.1] tracking-[-0.02em] sm:text-[38px]">
@@ -93,7 +92,7 @@ export default function CostPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[520px] text-[13.5px]">
               <thead>
-                <tr className="border-b border-[var(--border)] text-left text-[11.5px] uppercase tracking-[0.06em] text-[var(--text-faint)]">
+                <tr className="border-b border-[var(--rule-mid)] text-left text-[11.5px] uppercase tracking-[0.06em] text-[var(--text-faint)]">
                   <th className="pb-2 font-medium">Vendor</th>
                   <th className="pb-2 font-medium">Plan</th>
                   <th className="pb-2 text-right font-medium">Per month</th>
@@ -105,10 +104,10 @@ export default function CostPage() {
                 <tr className="bg-accent-500/[0.06]">
                   <td className="py-2.5 font-medium">QRly</td>
                   <td className="py-2.5 text-[var(--text-muted)]">this</td>
-                  <td className="tabular py-2.5 text-right font-semibold text-accent-600 dark:text-accent-400">
+                  <td className="tabular py-2.5 text-right font-semibold text-[var(--accent)]">
                     $0
                   </td>
-                  <td className="tabular py-2.5 text-right font-semibold text-accent-600 dark:text-accent-400">
+                  <td className="tabular py-2.5 text-right font-semibold text-[var(--accent)]">
                     $0
                   </td>
                   <td className="py-2.5 pl-6 text-[12.5px] text-[var(--text-muted)]">
@@ -168,7 +167,7 @@ export default function CostPage() {
                 <div className="mt-2 overflow-x-auto">
                   <table className="w-full min-w-[560px] text-[13px]">
                     <thead>
-                      <tr className="border-b border-[var(--border)] text-left text-[11px] uppercase tracking-[0.06em] text-[var(--text-faint)]">
+                      <tr className="border-b border-[var(--rule-mid)] text-left text-[11px] uppercase tracking-[0.06em] text-[var(--text-faint)]">
                         <th className="pb-1.5 font-medium">Plan</th>
                         <th className="pb-1.5 text-right font-medium">Annual&nbsp;/mo</th>
                         <th className="pb-1.5 text-right font-medium">Monthly</th>
@@ -206,7 +205,7 @@ export default function CostPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[600px] text-[13px]">
               <thead>
-                <tr className="border-b border-[var(--border)] text-left text-[11px] uppercase tracking-[0.06em] text-[var(--text-faint)]">
+                <tr className="border-b border-[var(--rule-mid)] text-left text-[11px] uppercase tracking-[0.06em] text-[var(--text-faint)]">
                   <th className="pb-1.5 font-medium">Service</th>
                   <th className="pb-1.5 font-medium">Free ceiling</th>
                   <th className="pb-1.5 font-medium">What that means</th>
@@ -219,7 +218,7 @@ export default function CostPage() {
                     <td className="py-2 font-medium">{row.service}</td>
                     <td className="py-2 text-[var(--text-muted)]">{row.free_limit}</td>
                     <td className="py-2 text-[12.5px] text-[var(--text-muted)]">{row.means}</td>
-                    <td className="tabular py-2 text-right text-accent-600 dark:text-accent-400">$0</td>
+                    <td className="tabular py-2 text-right text-[var(--accent)]">$0</td>
                   </tr>
                 ))}
               </tbody>
@@ -271,12 +270,15 @@ export default function CostPage() {
             is the belief that this is hard.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed">
-            The code is here to be read. If it is useful, run your own copy.
+            The source is here to be read. If it is useful, run your own copy.
           </p>
         </Section>
 
-        <footer className="mt-12 border-t border-[var(--border)] py-8 text-[12.5px] text-[var(--text-faint)]">
-          <Link href="/" className="underline underline-offset-2">
+        <footer className="mt-12 border-t border-[var(--rule-mid)] py-8 text-[12.5px] text-[var(--text-faint)]">
+          <Link
+            href="/"
+            className="inline-flex min-h-[36px] items-center text-[var(--text-faint)] underline decoration-[var(--rule-strong)] underline-offset-[3px] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)] hover:decoration-[var(--accent)]"
+          >
             Back to QRly
           </Link>
         </footer>
@@ -341,7 +343,7 @@ function Section({
 function Caveat({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-2.5">
-      <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-warn-400" aria-hidden />
+      <span className="mt-[9px] size-1.5 shrink-0 rounded-full bg-[var(--accent)]" aria-hidden />
       <span>
         <strong className="font-medium text-[var(--text)]">{label}.</strong> {children}
       </span>

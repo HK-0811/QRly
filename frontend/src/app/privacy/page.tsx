@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Wordmark } from '@/components/chrome';
 import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
@@ -19,11 +20,9 @@ export const metadata: Metadata = {
 export default function PrivacyPage() {
   return (
     <div className="min-h-dvh">
-      <header className="border-b border-[var(--border)]">
-        <div className="mx-auto flex h-14 max-w-3xl items-center px-5">
-          <Link href="/" className="text-[15px] font-semibold tracking-tight">
-            QRly
-          </Link>
+      <header className="border-b border-[var(--rule-mid)]">
+        <div className="mx-auto flex h-16 max-w-3xl items-center px-6">
+          <Wordmark />
         </div>
       </header>
 
@@ -100,7 +99,7 @@ export default function PrivacyPage() {
               construction.
             </NotRecorded>
             <NotRecorded label="Anything across links">
-              The identifier includes the link, so the same person scanning two different codes
+              The identifier includes the link, so the same person scanning two different QR codes
               produces two unrelated values.
             </NotRecorded>
           </ul>
@@ -110,7 +109,7 @@ export default function PrivacyPage() {
           <p>
             To tell a repeat scan from a new one, each scan gets an identifier computed as:
           </p>
-          <pre className="mt-3 overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--bg-subtle)] p-3 font-mono text-[12px]">
+          <pre className="mt-3 overflow-x-auto border border-[var(--rule-mid)] bg-[var(--bg-subtle)] p-3 font-mono text-[12px]">
 {`sha256( daily_salt + secret_pepper + ip + user_agent + link_id )`}
           </pre>
           <p className="mt-3">
@@ -179,8 +178,11 @@ export default function PrivacyPage() {
           </p>
         </Section>
 
-        <footer className="mt-12 border-t border-[var(--border)] pt-6 text-[12.5px] text-[var(--text-faint)]">
-          <Link href="/" className="underline underline-offset-2">
+        <footer className="mt-12 border-t border-[var(--rule-mid)] pt-6 text-[12.5px] text-[var(--text-faint)]">
+          <Link
+            href="/"
+            className="inline-flex min-h-[36px] items-center text-[var(--text-faint)] underline decoration-[var(--rule-strong)] underline-offset-[3px] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)] hover:decoration-[var(--accent)]"
+          >
             Back to QRly
           </Link>
         </footer>
@@ -221,7 +223,7 @@ function FieldGroup({ heading, items }: { heading: string; items: Array<[string,
 function NotRecorded({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <li className="flex gap-2.5">
-      <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-danger-500/70" aria-hidden />
+      <span className="mt-[7px] size-1.5 shrink-0 rounded-full bg-[var(--color-danger-500)]" aria-hidden />
       <span>
         <strong className="font-medium text-[var(--text)]">{label}.</strong> {children}
       </span>

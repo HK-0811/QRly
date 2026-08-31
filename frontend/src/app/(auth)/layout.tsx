@@ -1,33 +1,23 @@
-import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { Screen, Wordmark } from '@/components/chrome';
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center px-4 py-12">
-      <div className="w-full max-w-[380px] animate-in">
-        <Link href="/" className="mb-8 flex items-center gap-2">
-          <Mark />
-          <span className="text-[15px] font-semibold tracking-tight">QRly</span>
-        </Link>
-        {children}
+    <Screen className="flex min-h-dvh flex-col items-center justify-center px-6 py-14">
+      {/* Mark first, then the form. Two beats, not one block — the wordmark is
+          what tells you which product is asking for a password. */}
+      <div className="stagger w-full max-w-[400px]">
+        <div className="mb-10" style={{ ['--i' as string]: 0 }}>
+          <Wordmark />
+        </div>
+        <div style={{ ['--i' as string]: 1 }}>{children}</div>
       </div>
-      <p className="mt-10 max-w-[380px] text-center text-[12px] leading-relaxed text-[var(--text-faint)]">
+      <p
+        className="animate-rise mt-12 max-w-[400px] text-center text-[12px] leading-relaxed text-[var(--text-faint)]"
+        style={{ animationDelay: '160ms' }}
+      >
         Dynamic QR codes and short links, running entirely on free tiers.
       </p>
-    </div>
-  );
-}
-
-function Mark() {
-  return (
-    <svg viewBox="0 0 24 24" className="size-6" aria-hidden>
-      <rect x="1" y="1" width="9" height="9" rx="1.5" className="fill-none stroke-current" strokeWidth="2" />
-      <rect x="14" y="1" width="9" height="9" rx="1.5" className="fill-none stroke-current" strokeWidth="2" />
-      <rect x="1" y="14" width="9" height="9" rx="1.5" className="fill-none stroke-current" strokeWidth="2" />
-      <rect x="14.5" y="14.5" width="3.5" height="3.5" className="fill-accent-500" />
-      <rect x="19.5" y="19.5" width="3.5" height="3.5" className="fill-accent-500" />
-      <rect x="14.5" y="19.5" width="3.5" height="3.5" className="fill-current opacity-40" />
-      <rect x="19.5" y="14.5" width="3.5" height="3.5" className="fill-current opacity-40" />
-    </svg>
+    </Screen>
   );
 }
