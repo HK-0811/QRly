@@ -98,7 +98,7 @@ export default async function HomePage() {
             }}
           >
             <div
-              className="aspect-square w-[min(280px,60vw)]"
+              className="qr-fit aspect-square w-[min(280px,60vw)]"
               // Generated in this file from a URL we control; there is no
               // user-authored markup anywhere in it.
               dangerouslySetInnerHTML={{ __html: heroSvg }}

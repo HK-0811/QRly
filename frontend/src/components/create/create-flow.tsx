@@ -8,6 +8,7 @@ import { DEFAULT_STYLE, renderSvg, svgToPngBlob, download } from '@/lib/qr';
 import type { Domain, Link as LinkRow } from '@/lib/types';
 import { Button, ErrorText, Input, buttonClass, cn } from '@/components/ui';
 import { CopyButton } from '@/components/copy-button';
+import { Select as SelectControl } from '@/components/select';
 
 type Phase = 'idle' | 'building' | 'done';
 
@@ -211,10 +212,11 @@ export function CreateFlow({
 
           {domains.length > 1 ? (
             <Ruled label="Domain" hint="Locked once the QR code is saved.">
-              <select
+              <SelectControl
                 value={domainId}
-                onChange={(e) => setDomainId(e.target.value)}
-                className="w-full border-0 border-b border-[var(--rule-strong)] bg-transparent py-2 font-mono text-[15px]"
+                onChange={setDomainId}
+                className="w-full font-mono"
+                aria-label="Domain"
               >
                 {domains.map((d) => (
                   <option key={d.id} value={d.id}>
@@ -222,7 +224,7 @@ export function CreateFlow({
                     {d.is_custom ? '' : ' (shared)'}
                   </option>
                 ))}
-              </select>
+              </SelectControl>
             </Ruled>
           ) : (
             <Ruled label="Domain" hint="Locked once the QR code is saved.">
@@ -410,7 +412,7 @@ function Result({
           className="border border-[var(--rule-mid)] p-6"
           style={{ boxShadow: 'var(--shadow-block-sm)' }}
         >
-          <div className="aspect-square w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div className="qr-fit aspect-square w-full" dangerouslySetInnerHTML={{ __html: svg }} />
         </div>
 
         <div>

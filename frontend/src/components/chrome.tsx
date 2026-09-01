@@ -133,7 +133,14 @@ function CursorGrid() {
 /** Page shell. Everything sits above the grid, hence the z-index. */
 export function Screen({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="relative min-h-dvh overflow-x-hidden bg-[var(--bg)]">
+    // `clip`, not `hidden`. Both stop the decoration layer spilling sideways,
+    // but `overflow-x: hidden` computes `overflow-y` to `auto`, which makes this
+    // div a scroll container — and `position: sticky` anchors to its nearest
+    // scroll container, not the viewport. Since this one grows with its content
+    // and never actually scrolls, every sticky descendant in the app would
+    // simply never stick. `overflow-x: clip` clips without creating a
+    // scrollport, so the QR preview in qr-studio.tsx can pin to the viewport.
+    <div className="relative min-h-dvh overflow-x-clip bg-[var(--bg)]">
       <GridGround />
       <div className={cn('relative z-[1]', className)}>{children}</div>
     </div>

@@ -198,6 +198,37 @@ export function Spinner({
   );
 }
 
+/**
+ * The page-level loading state.
+ *
+ * `Spinner` is for a control that is busy — it lives inside a button and is
+ * sized to a line of text. This is for a route that has not arrived yet, and it
+ * is deliberately a different object rather than a bigger spinner: a spinner
+ * says "working", a QR taking shape says "your QR code is coming".
+ *
+ * 16 modules with the three finder corners in accent. The delay is computed per
+ * module from row + column so the pulse crosses the grid diagonally, which is
+ * one wave rather than sixteen blinks. Styling and keyframes live in
+ * globals.css under `@layer components` — see the note there for why this is
+ * CSS and not JS.
+ */
+export function QrLoader({ label = 'Loading' }: { label?: string }) {
+  const COLUMNS = 4;
+  return (
+    <div role="status" aria-live="polite" className="flex flex-col items-center gap-5">
+      <div className="qr-loader" aria-hidden>
+        {Array.from({ length: COLUMNS * COLUMNS }, (_, i) => (
+          <span
+            key={i}
+            style={{ animationDelay: `${((i % COLUMNS) + Math.floor(i / COLUMNS)) * 90}ms` }}
+          />
+        ))}
+      </div>
+      <span className="eyebrow text-[var(--text-faint)]">{label}</span>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Form fields
 //

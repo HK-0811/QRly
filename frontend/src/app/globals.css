@@ -409,6 +409,103 @@
     background-size: 220% 100%;
     animation: shimmer 1.4s linear infinite;
   }
+
+  /*
+    The open list of a Select (components/select.tsx).
+
+    Scales from its top edge rather than its centre, because it is anchored to
+    the control that opened it — a panel growing out of its own middle reads as
+    unrelated to the thing that spawned it. From 0.97 and -3px, never from 0:
+    nothing arrives out of nothing, and a list that springs from nowhere reads
+    as a glitch.
+
+    `--dur` (160ms) with the product's one curve, which is already a hard
+    ease-out. Closing is instant and has no animation — a menu you have just
+    chosen from should be gone, and the delay would be felt on every use.
+  */
+  .dropdown-panel {
+    transform-origin: top;
+    animation: dropdownIn var(--dur) var(--ease) both;
+  }
+
+  /*
+    Hold an injected QR code inside its box.
+
+    `renderSvg` emits `width`/`height` in px as well as a viewBox, because the
+    downloaded .svg needs an intrinsic size to open at something sensible when
+    it is not in a page. Those attributes are `total * 8`, and `total` grows with
+    the module count — so raising the quiet zone or the error-correction level
+    makes the SVG wider, while its container stays the size the layout gave it.
+    Past a threshold the code simply draws outside the white panel.
+
+    The viewBox already carries everything needed to scale, so the fix is to
+    stop the attributes deciding the rendered size. Applied at every site that
+    injects a code: the studio, the create flow, and the landing hero.
+  */
+  .qr-fit > svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /*
+    The loading state, shaped like the thing being loaded.
+
+    A 4x4 module field with the three corners in accent — the finder patterns a
+    QR code puts at top-left, top-right and bottom-left, which is what makes a
+    QR read as a QR at a glance rather than as a generic grid.
+
+    Two constraints drove the implementation. It animates only `opacity` and
+    `scale`, so it stays on the compositor: this thing renders *while the
+    browser is fetching a route*, which is exactly when the main thread is too
+    busy to drive a JS animation without dropping frames. And the wave is pure
+    CSS for the same reason — no requestAnimationFrame, no library.
+
+    The delay is set per module from the component as (row + column), so the
+    pulse travels diagonally. Modules start at 0.92 rather than 0: nothing in
+    the world appears out of nothing, and a module that scales up from nothing
+    reads as a glitch rather than as a pulse.
+  */
+  .qr-loader {
+    display: grid;
+    grid-template-columns: repeat(4, 11px);
+    gap: 4px;
+  }
+
+  .qr-loader > span {
+    width: 11px;
+    height: 11px;
+    background: var(--text);
+    opacity: 0.14;
+    animation: qrModule 1200ms var(--ease) infinite;
+  }
+
+  /* Finder patterns: top-left, top-right, bottom-left. */
+  .qr-loader > span:nth-child(1),
+  .qr-loader > span:nth-child(4),
+  .qr-loader > span:nth-child(13) {
+    background: var(--accent);
+  }
+}
+
+@keyframes dropdownIn {
+  from {
+    opacity: 0;
+    scale: 0.97;
+    translate: 0 -3px;
+  }
+}
+
+@keyframes qrModule {
+  0%,
+  100% {
+    opacity: 0.14;
+    scale: 0.92;
+  }
+  40% {
+    opacity: 1;
+    scale: 1;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -429,6 +526,18 @@
     leave to that. `!important` here settles it and cannot be lost.
   */
   *:active {
+    scale: 1 !important;
+  }
+
+  /*
+    The rule above stops the loader's pulse by collapsing its duration, which
+    leaves every module frozen on the keyframe it was heading for — 14% opacity,
+    a loader you cannot see. Reduced motion means gentler motion, not an
+    invisible interface, so the modules resolve to a legible static grid and the
+    accent corners still say what they are.
+  */
+  .qr-loader > span {
+    opacity: 0.55 !important;
     scale: 1 !important;
   }
 }

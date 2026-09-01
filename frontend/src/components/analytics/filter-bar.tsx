@@ -4,6 +4,7 @@ import type { FilterOptions, RangeKey, ScanFilters } from '@/lib/analytics';
 import { RANGES } from '@/lib/analytics';
 import type { LinkWithDomain } from '@/lib/types';
 import { Button, segmentClass } from '@/components/ui';
+import { Select as SelectControl } from '@/components/select';
 
 /**
  * Filters, in one row above the charts.
@@ -197,17 +198,12 @@ function Select({
   value: string;
   onChange: (v: string) => void;
   children: React.ReactNode;
-  // Omit the native onChange so the string-valued one above is not widened by it.
-} & Omit<React.SelectHTMLAttributes<HTMLSelectElement>, 'value' | 'onChange' | 'children'>) {
+  'aria-label'?: string;
+}) {
   return (
-    <select
-      {...rest}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="h-8 max-w-[170px] border-0 border-b border-[var(--rule-strong)] bg-transparent px-1 text-[12.5px] text-[var(--text-muted)] transition-colors hover:border-[var(--rule-ink)] hover:text-[var(--text)]"
-    >
+    <SelectControl {...rest} value={value} onChange={onChange} className="max-w-[170px]">
       {children}
-    </select>
+    </SelectControl>
   );
 }
 

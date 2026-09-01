@@ -179,15 +179,44 @@ export function QrStudio({
   }
 
   return (
-    <div className="grid min-h-[calc(100dvh-71px)] lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
-      {/* ------------------------- preview ------------------------- */}
-      <div className="flex min-w-0 flex-col items-center justify-center gap-7 px-6 py-11 pb-24">
+    // `items-start` so the two columns size to their own content: a stretched
+    // grid item cannot be sticky, because it is already as tall as the row.
+    <div className="grid lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)] lg:items-start">
+      {/*
+        ------------------------- preview -------------------------
+
+        Pinned below the header from `lg` up. The panel of controls to the right
+        is several screens tall, and every one of those controls changes what
+        this preview looks like — a preview you have to scroll away from to
+        reach the control that edits it is not a preview.
+
+        This used to be `min-h-[calc(100dvh-71px)]` with the QR centred inside
+        it, which assumed the studio owned the viewport. It does not: it sits
+        under the link header and the tab bar, about 450px down, so centring in
+        a viewport-tall column put the QR below the fold on first paint. Now the
+        column is only as tall as it needs to be and starts at the top.
+
+        `top-71px` clears the sticky dashboard header. The QR is capped against
+        `dvh` as well as width so the whole column fits beside the header
+        without needing to scroll internally.
+
+        No `overflow` here, deliberately. Capping the height and adding
+        `overflow-y: auto` looks like the safe way to handle a pane taller than
+        the viewport, but `overflow-y` on one axis forces the other from
+        `visible` to `auto`, which makes this a clipping box — and `box-shadow`
+        is ink overflow, not scrollable overflow, so it gets clipped rather than
+        scrolled. That severed the panel's 18px offset shadow into floating
+        fragments, and moved the cut around as the QR resized under the
+        controls. The height cap on the QR is what keeps the column short
+        enough that no scrolling is needed.
+      */}
+      <div className="flex min-w-0 flex-col items-center gap-5 px-6 py-8 lg:sticky lg:top-[71px]">
         <div
           className="border border-[var(--rule-mid)] bg-white p-6"
           style={{ boxShadow: 'var(--shadow-block)' }}
         >
           <div
-            className="aspect-square w-[min(360px,70vw)]"
+            className="qr-fit aspect-square w-[min(340px,70vw,34dvh)]"
             // Generated in this file from a URL we control; there is no
             // user-authored markup anywhere in it.
             dangerouslySetInnerHTML={{ __html: svg ?? '' }}
