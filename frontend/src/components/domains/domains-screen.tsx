@@ -22,16 +22,27 @@ export function DomainsScreen({
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(domains.length === 0);
+  /**
+   * A domain that was created but could not be registered for a certificate.
+   *
+   * The 201 used to be discarded, which threw `cloudflare_error` away with it. So
+   * a token the API rejects produced a row that looked added, said nothing, and
+   * only explained itself if someone pressed Check now and expanded the details.
+   * The registration happens at Add, so the failure belongs here too.
+   */
+  const [addWarning, setAddWarning] = useState<string | null>(null);
 
   async function add(e: React.FormEvent) {
     e.preventDefault();
     setAdding(true);
     setError(null);
     setHint(null);
+    setAddWarning(null);
     try {
-      await api.createDomain(hostname.trim());
+      const created = await api.createDomain(hostname.trim());
       setHostname('');
       setShowForm(false);
+      setAddWarning(created.cloudflare_error);
       router.refresh();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -61,6 +72,17 @@ export function DomainsScreen({
           </Button>
         )}
       </div>
+
+      {addWarning && (
+        <div className="mb-6">
+          <Note tone="warn" title="Added, but no certificate was requested">
+            The hostname was saved and DNS verification will work, but registering it for a
+            certificate failed, so it cannot go live yet. The certificate provider said:{' '}
+            <span className="font-mono text-[12.5px] text-[var(--text)]">{addWarning}</span> Press
+            Check now to retry the registration once that is resolved.
+          </Note>
+        </div>
+      )}
 
       {!cloudflareConfigured && (
         <div className="mb-6">
