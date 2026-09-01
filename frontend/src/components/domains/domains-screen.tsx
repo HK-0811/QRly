@@ -1,14 +1,11 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api, ApiError, type DomainVerification } from '@/lib/api';
 import type { Domain } from '@/lib/types';
-import { Badge, Button, ErrorText, Input, Note, Spinner, cn } from '@/components/ui';
+import { Badge, Button, ErrorText, Input, Note, cn } from '@/components/ui';
 import { CopyButton } from '@/components/copy-button';
-
-/** How often a pending domain re-checks itself while the page is open. */
-const POLL_MS = 30_000;
 
 export function DomainsScreen({
   domains,
@@ -150,29 +147,32 @@ function DomainRow({ domain, onChanged }: { domain: Domain; onChanged: () => voi
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<DomainVerification | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [elapsed, setElapsed] = useState(0);
 
   const state = result?.outcome.state ?? domain.verification_status;
-  const settled = state === 'active' || state === 'failed';
 
-  const verify = useCallback(
-    async (silent = false) => {
-      if (!silent) setBusy(true);
-      setError(null);
-      try {
-        const res = await api.verifyDomain(domain.id);
-        setResult(res);
-        if (res.outcome.state === 'active') onChanged();
-      } catch (err) {
-        // A failed poll is not worth interrupting the page over; a failed click
-        // is, because someone is waiting on it.
-        if (!silent) setError(err instanceof ApiError ? err.message : 'Something went wrong.');
-      } finally {
-        if (!silent) setBusy(false);
-      }
-    },
-    [domain.id, onChanged],
-  );
+  /**
+   * Check on demand only.
+   *
+   * This used to poll every 30 seconds for as long as the page was open. That was
+   * cheap while the Worker held no Cloudflare credentials, because the certificate
+   * half of the check was skipped — but a configured Worker calls the Cloudflare
+   * API on every verify (routes/domains.ts), so an open tab became a standing
+   * stream of external requests against a fact that changes on DNS-propagation
+   * timescales: minutes to hours. Someone waiting knows to press the button.
+   */
+  async function verify() {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await api.verifyDomain(domain.id);
+      setResult(res);
+      if (res.outcome.state === 'active') onChanged();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function remove() {
     setBusy(true);
@@ -189,25 +189,6 @@ function DomainRow({ domain, onChanged }: { domain: Domain; onChanged: () => voi
     }
   }
 
-  /**
-   * Poll while the domain is still pending.
-   *
-   * DNS propagation is minutes to hours, and the previous build offered a manual
-   * button and nothing else — so the honest states were there but the waiting was
-   * the reader's problem. The elapsed counter exists so a long wait reads as a
-   * long wait rather than as a page that has stopped working.
-   */
-  const started = useRef(Date.now());
-  useEffect(() => {
-    if (settled) return;
-    const tick = setInterval(() => setElapsed(Math.floor((Date.now() - started.current) / 1000)), 1000);
-    const poll = setInterval(() => void verify(true), POLL_MS);
-    return () => {
-      clearInterval(tick);
-      clearInterval(poll);
-    };
-  }, [settled, verify]);
-
   return (
     <div className="border-b border-[var(--rule)] px-6 py-5 last:border-b-0">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -223,14 +204,8 @@ function DomainRow({ domain, onChanged }: { domain: Domain; onChanged: () => voi
         </div>
 
         <div className="flex items-center gap-3">
-          {!settled && (
-            <span className="flex items-center gap-2.5 font-mono text-[11px] text-[var(--text-soft)]">
-              <Spinner size={18} />
-              checking · {formatElapsed(elapsed)} elapsed
-            </span>
-          )}
           <StatusBadge state={state} />
-          <Button size="sm" variant="ghost" loading={busy} onClick={() => verify(false)}>
+          <Button size="sm" variant="ghost" loading={busy} onClick={verify}>
             {state === 'active' ? 'Re-check' : 'Check now'}
           </Button>
           <Button size="sm" variant="ghost-danger" disabled={busy} onClick={remove}>
@@ -266,7 +241,7 @@ function DomainRow({ domain, onChanged }: { domain: Domain; onChanged: () => voi
           If your DNS is hosted on Cloudflare, set this record to{' '}
           <strong className="font-medium text-[var(--text)]">DNS only</strong> (grey cloud). A
           proxied record hides the CNAME from public resolvers and verification cannot see it.
-          {!settled && ' We re-check every 30 seconds while this page is open.'}
+          {state !== 'failed' && ' DNS takes minutes to hours — press Check now when you are ready.'}
         </p>
       )}
 
@@ -313,22 +288,32 @@ function DomainRow({ domain, onChanged }: { domain: Domain; onChanged: () => voi
                 </p>
               ))}
               <p>
+                registration:{' '}
+                <span className="text-[var(--text)]">
+                  {result.certificate.registered
+                    ? 'registered'
+                    : result.certificate.configured
+                      ? 'not registered'
+                      : 'not configured'}
+                </span>
+              </p>
+              <p>
                 certificate: {result.certificate.status ?? 'none'} —{' '}
                 {result.certificate.description}
               </p>
+              {/* The line that would have ended a fifteen-minute wait in five
+                  seconds: a swallowed registration error, shown. */}
+              {result.certificate.registration_error && (
+                <p className="text-[var(--color-danger-500)]">
+                  registration error: {result.certificate.registration_error}
+                </p>
+              )}
             </div>
           </details>
         </div>
       )}
     </div>
   );
-}
-
-function formatElapsed(seconds: number): string {
-  if (seconds < 60) return `${seconds}s`;
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}m ${String(s).padStart(2, '0')}s`;
 }
 
 function StatusBadge({ state }: { state: string }) {
