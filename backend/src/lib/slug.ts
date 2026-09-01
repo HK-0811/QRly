@@ -24,7 +24,7 @@ export const MAX_SLUG_LENGTH = 64;
  */
 export const RESERVED_SLUGS = new Set([
   // reachable Worker paths
-  'api', 'health', '__scheduled', 'favicon.ico', 'robots.txt', 'sitemap.xml',
+  'api', 'health', '__scheduled', 'favicon.ico', 'icon.svg', 'robots.txt', 'sitemap.xml',
   '.well-known', 'cdn-cgi',
   // dashboard surface. The hostnames ARE merged: the dashboard is served from the
   // platform hostname alongside short codes, so every one of these is a live path

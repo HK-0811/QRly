@@ -40,6 +40,22 @@ describe('the dashboard and the redirect engine share one hostname', () => {
     expect(await res.text()).toBe('dashboard:/_next/static/chunk.js');
   });
 
+  /*
+    The tab icon shipped as a globe for a while, and this is the assertion that
+    was missing. The files were correct in frontend/src/app; nothing forwarded
+    them. /icon.svg was parsed as a short code and answered with the 404 scanner
+    page, and /favicon.ico matched the reserved-slug stub in routes/redirect.ts
+    and came back 204 empty. A browser asks for both without being told to, so
+    neither has a page to be reached from — nothing in the app would ever have
+    caught it.
+  */
+  it('forwards the root icons a browser fetches unprompted', async () => {
+    for (const path of ['/favicon.ico', '/icon.svg']) {
+      const res = await get(`${PLATFORM}${path}`, { DASHBOARD });
+      expect(await res.text(), path).toBe(`dashboard:${path}`);
+    }
+  });
+
   it('does NOT forward a short code — the hot path still owns the catch-all', async () => {
     const res = await get(`${PLATFORM}/aB3xK9p`, { DASHBOARD });
     expect(await res.text()).not.toContain('dashboard:');

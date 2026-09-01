@@ -49,6 +49,26 @@ export const DASHBOARD_SEGMENTS = new Set([
   'privacy',
   '_next', // Next.js build output
   'geo', // frontend/public/geo — map topology
+
+  /*
+    The tab icon, and the reason it showed a globe.
+
+    Next emits these from frontend/src/app as root-level paths, so the browser
+    asks this Worker for them and this Worker owns every hostname on the zone.
+    Missing from this list, /icon.svg parsed as a short code and answered with
+    the 404 scanner page, and /favicon.ico matched the reserved-slug stub in
+    routes/redirect.ts and came back 204 empty. Both files were correct and
+    neither was ever reachable.
+
+    Both carry a dot, which no slug may, so they cannot collide with a real
+    code. They stay in RESERVED_SLUGS regardless, because that list is what
+    tools/check-dashboard-paths.mjs reconciles this one against.
+
+    No apostrophes in here: that tool reads this set by matching single-quoted
+    runs, so one would open a string and swallow the rest of the comment.
+  */
+  'favicon.ico',
+  'icon.svg',
 ]);
 
 /**

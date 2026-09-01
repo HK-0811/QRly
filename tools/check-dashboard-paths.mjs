@@ -30,14 +30,26 @@ const bad = (name, detail) => {
   console.log(`  FAIL  ${name}${detail ? ` — ${detail}` : ''}`);
 };
 
-/** Pull the quoted entries out of a `new Set([...])` literal in a TypeScript file. */
+/**
+ * Pull the quoted entries out of a `new Set([...])` literal in a TypeScript file.
+ *
+ * Comments are stripped before the quotes are matched. Both sets this reads are
+ * heavily commented, and an apostrophe in prose — "the scanner's 404 page" —
+ * otherwise opens a string that runs to the next one, turning a paragraph into a
+ * segment named after half of itself. It reported that as a stale entry, which is
+ * a long way from the cause.
+ */
 function setLiteral(file, name) {
   const src = readFileSync(file, 'utf8');
   const start = src.indexOf(name);
   if (start === -1) throw new Error(`${name} not found in ${file}`);
   const open = src.indexOf('[', start);
   const close = src.indexOf(']', open);
-  return new Set([...src.slice(open, close).matchAll(/'([^']*)'/g)].map((m) => m[1]));
+  const body = src
+    .slice(open, close)
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/\/\/.*$/gm, '');
+  return new Set([...body.matchAll(/'([^']*)'/g)].map((m) => m[1]));
 }
 
 /**
@@ -65,15 +77,32 @@ function frontendSegments(dir, prefix = []) {
   return found;
 }
 
+/**
+ * Root-level files Next serves out of app/ rather than public/.
+ *
+ * This check read only public/, which is why a correct favicon shipped invisible:
+ * Next emits app/icon.svg and app/favicon.ico as / paths, the browser asks the
+ * redirect engine for them, and nothing here knew they existed. They are neither
+ * pages nor public assets, so they fell in the gap between the two lists this
+ * file was written to reconcile.
+ */
+function appRootAssets(dir) {
+  const METADATA =
+    /^(favicon\.ico|icon\.(svg|png|ico)|apple-icon\.(png|jpg|jpeg)|opengraph-image\.\w+|twitter-image\.\w+|manifest\.(json|webmanifest)|robots\.txt|sitemap\.xml)$/;
+  return new Set(readdirSync(dir).filter((e) => METADATA.test(e)));
+}
+
 console.log('reading the real route files\n');
 
 const declared = setLiteral('backend/src/lib/dashboard.ts', 'DASHBOARD_SEGMENTS');
 const reserved = setLiteral('backend/src/lib/slug.ts', 'RESERVED_SLUGS');
 const pages = frontendSegments(APP_DIR);
 const assets = new Set(readdirSync(PUBLIC_DIR));
+const rootAssets = appRootAssets(APP_DIR);
 
 console.log(`  frontend pages     ${[...pages].map((p) => p || '/').join(', ')}`);
 console.log(`  public assets      ${[...assets].join(', ') || '(none)'}`);
+console.log(`  app root files     ${[...rootAssets].join(', ') || '(none)'}`);
 console.log(`  declared segments  ${declared.size}\n`);
 
 console.log('every dashboard page is forwarded');
@@ -89,6 +118,12 @@ for (const asset of [...assets].sort()) {
   else bad(asset, `add '${asset}' to DASHBOARD_SEGMENTS or the browser cannot fetch it`);
 }
 
+console.log('\nevery root-level file Next serves from app/ is forwarded');
+for (const asset of [...rootAssets].sort()) {
+  if (declared.has(asset)) ok(asset);
+  else bad(asset, `add '${asset}' to DASHBOARD_SEGMENTS or the browser gets a short-code lookup`);
+}
+
 console.log('\nevery forwarded segment is also a reserved slug');
 for (const seg of [...declared].sort()) {
   if (seg === '') continue; // the root is not a slug anybody could claim
@@ -97,7 +132,7 @@ for (const seg of [...declared].sort()) {
 }
 
 console.log('\nnothing forwarded that does not exist');
-const known = new Set([...pages, ...assets, '_next', '']);
+const known = new Set([...pages, ...assets, ...rootAssets, '_next', '']);
 for (const seg of [...declared].sort()) {
   if (known.has(seg)) ok(seg);
   else bad(seg, 'declared but no such page, asset or build output — stale entry');
