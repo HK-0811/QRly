@@ -20,6 +20,7 @@ import {
   ensureCustomHostname,
   getCustomHostname,
   isConfigured,
+  type CustomHostname,
 } from '../lib/cloudflare';
 import { API_WRITE_LIMIT, rateLimit, rateLimitHeaders } from '../lib/rate-limit';
 import { log } from '../lib/log';
@@ -173,18 +174,25 @@ domains.post('/domains/:id/verify', async (c) => {
 
   // Registration may have failed when the domain was added, or credentials may
   // have arrived since. Either way, make sure the hostname is registered before
-  // asking about its certificate.
+  // asking about its certificate. `ensureCustomHostname` recovers the id of an
+  // already-registered hostname, so a row that lost its id heals on the next
+  // Verify rather than being stuck for good.
   let cfId = domain.cf_custom_hostname_id;
+  let recovered: CustomHostname | null = null;
+  let registrationError: string | null = null;
   if (!cfId && isConfigured(c.env)) {
     const registered = await ensureCustomHostname(c.env, domain.hostname);
+    recovered = registered.hostname;
     cfId = registered.hostname?.id ?? null;
+    registrationError = registered.error;
   }
 
   // DNS and certificate status in parallel — the two answers are independent and
-  // the person is waiting.
-  const [dns, cert] = await Promise.all([
+  // the person is waiting. A registration that just came back carries its own
+  // fresh status, so re-fetching it would be a second call for the same answer.
+  const [dns, fetched] = await Promise.all([
     resolveCname(domain.hostname),
-    cfId && isConfigured(c.env)
+    cfId && !recovered && isConfigured(c.env)
       ? getCustomHostname(c.env, cfId).catch((err) => {
           log.warn({ event: 'custom_hostname_fetch_failed', domain_id: domain.id, error: String(err) });
           return null;
@@ -192,8 +200,17 @@ domains.post('/domains/:id/verify', async (c) => {
       : Promise.resolve(null),
   ]);
 
-  const certificateActive = certificateIsActive(cert);
-  const outcome = interpret(domain.hostname, expected, dns, certificateActive);
+  const cert = recovered ?? fetched;
+
+  const certState = {
+    configured: isConfigured(c.env),
+    registered: Boolean(cfId),
+    statusKnown: Boolean(cert?.ssl),
+    active: certificateIsActive(cert),
+    error: registrationError,
+  };
+
+  const outcome = interpret(domain.hostname, expected, dns, certState);
 
   const patch: Record<string, unknown> = {
     verification_status: outcome.state === 'active' ? 'active' : outcome.state === 'failed' ? 'failed' : 'verifying',
@@ -232,6 +249,11 @@ domains.post('/domains/:id/verify', async (c) => {
       status: cert?.ssl?.status ?? null,
       description: describeSslStatus(cert?.ssl?.status),
       configured: isConfigured(c.env),
+      // Registration is reported separately from the certificate status. A null
+      // status with `registered: false` is a setup failure, not a wait, and the
+      // two used to be indistinguishable in this payload.
+      registered: certState.registered,
+      registration_error: registrationError,
     },
   });
 });

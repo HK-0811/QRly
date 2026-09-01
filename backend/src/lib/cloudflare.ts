@@ -118,6 +118,23 @@ export function getCustomHostname(env: Env, id: string): Promise<CustomHostname>
   return call<CustomHostname>(env, `/custom_hostnames/${encodeURIComponent(id)}`);
 }
 
+/**
+ * Find a registration by hostname rather than by stored id.
+ *
+ * This is the recovery path for a lost id, and it is not hypothetical: a create
+ * that succeeds while the row that should hold its id does not get written leaves
+ * a hostname registered here and unknown to us. Without a lookup by name there is
+ * no way back — see `ensureCustomHostname`.
+ */
+export async function findCustomHostname(env: Env, hostname: string): Promise<CustomHostname | null> {
+  const found = await call<CustomHostname[]>(
+    env,
+    `/custom_hostnames?hostname=${encodeURIComponent(hostname)}`,
+  );
+  const wanted = hostname.trim().toLowerCase();
+  return found.find((h) => h.hostname?.toLowerCase() === wanted) ?? null;
+}
+
 export function deleteCustomHostname(env: Env, id: string): Promise<unknown> {
   return call(env, `/custom_hostnames/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
@@ -126,6 +143,14 @@ export function deleteCustomHostname(env: Env, id: string): Promise<unknown> {
  * Register the hostname, tolerating the case where it already exists.
  *
  * Re-verifying a domain must not fail because it was registered the first time.
+ *
+ * "Already exists" must return the existing registration, not merely forgive the
+ * error. Returning `{ hostname: null, error: null }` here — success with no id —
+ * was a permanent dead end: the caller stored no id, so the next verify created
+ * again, got 1406 again, and the certificate was never once polled. The domain
+ * reported "the certificate is still being issued" forever while a perfectly good
+ * certificate sat on the zone. Recovering the id by name is what makes the flow
+ * self-healing instead of one-way.
  */
 export async function ensureCustomHostname(
   env: Env,
@@ -135,8 +160,19 @@ export async function ensureCustomHostname(
     return { hostname: await createCustomHostname(env, hostname), error: null };
   } catch (err) {
     if (err instanceof CloudflareError && err.isDuplicate) {
-      log.info({ event: 'custom_hostname_already_registered', hostname });
-      return { hostname: null, error: null };
+      const existing = await findCustomHostname(env, hostname).catch(() => null);
+      log.info({
+        event: 'custom_hostname_already_registered',
+        hostname,
+        recovered_id: Boolean(existing),
+      });
+      if (existing) return { hostname: existing, error: null };
+      // Registered, but not on this zone or not readable with this token. Saying
+      // so beats reporting a success that carries nothing.
+      return {
+        hostname: null,
+        error: `${hostname} is already registered, but its certificate could not be read.`,
+      };
     }
     const message = err instanceof Error ? err.message : String(err);
     log.warn({ event: 'custom_hostname_create_failed', hostname, error: message });

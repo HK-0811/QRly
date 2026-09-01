@@ -168,9 +168,35 @@ export function inspectHostname(raw: string): HostnameShape {
 // ---------------------------------------------------------------------------
 
 export type VerificationOutcome =
-  | { state: 'active'; message: string }
+  // `hint` is declared on every member, undefined on the one that never carries
+  // one. An active domain has nothing left to advise about, but a caller reading
+  // `outcome.hint` should not have to narrow the union to find that out.
+  | { state: 'active'; message: string; hint?: undefined }
   | { state: 'pending'; message: string; hint?: string }
   | { state: 'failed'; message: string; hint?: string };
+
+/**
+ * What is known about the certificate, as opposed to whether it is serving.
+ *
+ * This used to be a single `certificateActive: boolean`, and that shape could not
+ * represent the failure that actually happened in production: the hostname was
+ * never registered, so no certificate was ever requested, so `active` was false —
+ * indistinguishable from a certificate that is issuing normally. The message said
+ * "still being issued" for an hour, and would have said it for a year. A boolean
+ * had nowhere to put "nothing is issuing, and nothing will".
+ */
+export interface CertificateState {
+  /** Certificate provisioning is configured on this deployment at all. */
+  configured: boolean;
+  /** The hostname is registered with the provider, so a certificate exists to wait for. */
+  registered: boolean;
+  /** The provider answered when asked about it. False means we do not know. */
+  statusKnown: boolean;
+  /** A certificate exists and is serving. */
+  active: boolean;
+  /** Why registration failed, when it did. */
+  error?: string | null;
+}
 
 /**
  * Turn a DNS answer into something worth showing a person.
@@ -183,7 +209,7 @@ export function interpret(
   hostname: string,
   expectedTarget: string,
   dns: CnameResult,
-  certificateActive: boolean,
+  cert: CertificateState,
 ): VerificationOutcome {
   const shape = inspectHostname(hostname);
   const expected = normalise(expectedTarget);
@@ -240,7 +266,41 @@ export function interpret(
     };
   }
 
-  if (!certificateActive) {
+  // Everything below here is about the certificate. The record is correct and has
+  // propagated, so nothing the customer does to their DNS can change the answer.
+
+  if (!cert.configured) {
+    return {
+      state: 'pending',
+      message: 'The DNS record is correct. Certificate provisioning is not configured on this deployment.',
+      hint: 'Nothing to do from your side — this one needs fixing on ours.',
+    };
+  }
+
+  if (!cert.registered) {
+    // `failed`, not `pending`: no certificate was ever requested, so waiting
+    // cannot help. This is the state that used to read "still being issued".
+    return {
+      state: 'failed',
+      message: `The DNS record is correct, but ${hostname} could not be registered for a certificate.`,
+      hint: cert.error
+        ? `The certificate provider said: ${cert.error}`
+        : 'Verify again to retry the registration. If it keeps failing, this needs fixing on our side.',
+    };
+  }
+
+  if (!cert.statusKnown) {
+    // Registered, but the provider did not answer. Distinct from "issuing"
+    // for the same reason an unreachable resolver is distinct from a missing
+    // record: one is our problem and one is a wait.
+    return {
+      state: 'pending',
+      message: 'The DNS record is correct. We could not read the certificate status just now.',
+      hint: 'Try verifying again in a moment.',
+    };
+  }
+
+  if (!cert.active) {
     // The distinguishable case architecture.md §4.4 exists for.
     return {
       state: 'pending',

@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { inspectHostname, interpret, resolveCname, type CnameResult } from '../src/lib/dns';
+import {
+  inspectHostname,
+  interpret,
+  resolveCname,
+  type CertificateState,
+  type CnameResult,
+} from '../src/lib/dns';
 import { certificateIsActive, describeSslStatus, isConfigured } from '../src/lib/cloudflare';
 import { env } from 'cloudflare:test';
 
@@ -50,6 +56,18 @@ const dns = (over: Partial<CnameResult> = {}): CnameResult => ({
   ...over,
 });
 
+/**
+ * Registered and waiting on issuance — the ordinary pending case, and the default
+ * so that each test overrides only the one field it is about.
+ */
+const cert = (over: Partial<CertificateState> = {}): CertificateState => ({
+  configured: true,
+  registered: true,
+  statusKnown: true,
+  active: false,
+  ...over,
+});
+
 const TARGET = 'qrly.example.workers.dev';
 
 describe('verification messages', () => {
@@ -57,7 +75,7 @@ describe('verification messages', () => {
     // The distinction architecture.md §4.4 exists for. Cloudflare reports both as
     // pending, and they mean opposite things to somebody who just followed
     // instructions.
-    const missing = interpret('qr.example.com', TARGET, dns(), false);
+    const missing = interpret('qr.example.com', TARGET, dns(), cert());
     expect(missing.state).toBe('pending');
     expect(missing.message).toContain('No CNAME record found');
     expect(missing.hint).toContain(TARGET);
@@ -66,29 +84,74 @@ describe('verification messages', () => {
       'qr.example.com',
       TARGET,
       dns({ target: TARGET, agreed: true }),
-      false,
+      cert(),
     );
     expect(issuing.state).toBe('pending');
     expect(issuing.message).toContain('certificate is still being issued');
     expect(issuing.hint).toContain('Nothing more to do');
   });
 
+  it('does not claim a certificate is issuing when none was ever requested', () => {
+    // The production failure this branch exists for. The hostname was never
+    // registered, so `active` was false — identical to a certificate that is
+    // issuing normally. Verification reported "still being issued" for an hour,
+    // and would have reported it forever: no amount of waiting registers a
+    // hostname. `failed` is the honest state, because waiting cannot help.
+    const unregistered = interpret(
+      'qr.example.com',
+      TARGET,
+      dns({ target: TARGET }),
+      cert({ registered: false, statusKnown: false, error: 'Duplicate custom hostname found.' }),
+    );
+    expect(unregistered.state).toBe('failed');
+    expect(unregistered.message).not.toContain('still being issued');
+    expect(unregistered.message).toContain('could not be registered');
+    // The provider's own words, rather than a shrug. This is what turns fifteen
+    // minutes of staring at a spinner into one actionable line.
+    expect(unregistered.hint).toContain('Duplicate custom hostname found.');
+  });
+
+  it('blames the deployment, not the customer, when provisioning is unconfigured', () => {
+    const unconfigured = interpret(
+      'qr.example.com',
+      TARGET,
+      dns({ target: TARGET }),
+      cert({ configured: false, registered: false, statusKnown: false }),
+    );
+    expect(unconfigured.state).toBe('pending');
+    expect(unconfigured.message).toContain('not configured');
+    expect(unconfigured.hint).toContain('Nothing to do from your side');
+  });
+
+  it('separates "cannot read the certificate" from "certificate is issuing"', () => {
+    // Same reasoning as an unreachable resolver: not knowing is not the same as
+    // knowing it is pending, and only one of them is our fault.
+    const unknown = interpret(
+      'qr.example.com',
+      TARGET,
+      dns({ target: TARGET }),
+      cert({ statusKnown: false }),
+    );
+    expect(unknown.state).toBe('pending');
+    expect(unknown.message).toContain('could not read the certificate status');
+  });
+
   it('goes active only when the record resolves AND a certificate exists', () => {
     // Activating on DNS alone routes traffic to a hostname with no certificate,
     // which is a TLS error rather than a redirect.
-    expect(interpret('qr.example.com', TARGET, dns({ target: TARGET }), true).state).toBe('active');
-    expect(interpret('qr.example.com', TARGET, dns({ target: TARGET }), false).state).toBe('pending');
+    expect(interpret('qr.example.com', TARGET, dns({ target: TARGET }), cert({ active: true })).state).toBe('active');
+    expect(interpret('qr.example.com', TARGET, dns({ target: TARGET }), cert()).state).toBe('pending');
   });
 
   it('names the wrong target rather than saying "failed"', () => {
-    const wrong = interpret('qr.example.com', TARGET, dns({ target: 'somewhere.else.test' }), false);
+    const wrong = interpret('qr.example.com', TARGET, dns({ target: 'somewhere.else.test' }), cert());
     expect(wrong.state).toBe('failed');
     expect(wrong.message).toContain('somewhere.else.test');
     expect(wrong.message).toContain(TARGET);
   });
 
   it('explains an apex domain instead of just refusing it', () => {
-    const apex = interpret('example.com', TARGET, dns({ hasAddressRecord: true }), false);
+    const apex = interpret('example.com', TARGET, dns({ hasAddressRecord: true }), cert());
     expect(apex.state).toBe('failed');
     expect(apex.message).toContain('root domain');
     expect(apex.hint).toContain('qr.example.com');
@@ -97,7 +160,7 @@ describe('verification messages', () => {
   it('recognises a proxied Cloudflare record, the most common silent failure', () => {
     // An orange-cloud record hides the CNAME behind Cloudflare's addresses, so
     // verification sees an A record and nothing else.
-    const proxied = interpret('qr.example.com', TARGET, dns({ hasAddressRecord: true }), false);
+    const proxied = interpret('qr.example.com', TARGET, dns({ hasAddressRecord: true }), cert());
     expect(proxied.state).toBe('failed');
     expect(proxied.hint).toContain('DNS only');
     expect(proxied.hint).toContain('grey cloud');
@@ -108,7 +171,7 @@ describe('verification messages', () => {
       'qr.example.com',
       TARGET,
       dns({ target: TARGET, agreed: false }),
-      true,
+      cert({ active: true }),
     );
     expect(propagating.state).toBe('pending');
     expect(propagating.message).toContain('not reached every DNS resolver');
@@ -124,14 +187,14 @@ describe('verification messages', () => {
           { resolver: 'google', target: null, reachable: false },
         ],
       }),
-      false,
+      cert(),
     );
     expect(noResolver.state).toBe('pending');
     expect(noResolver.message).toContain('Nothing is wrong with your setup');
   });
 
   it('is case- and trailing-dot-insensitive about the target', () => {
-    const messy = interpret('qr.example.com', `${TARGET.toUpperCase()}.`, dns({ target: TARGET }), true);
+    const messy = interpret('qr.example.com', `${TARGET.toUpperCase()}.`, dns({ target: TARGET }), cert({ active: true }));
     expect(messy.state).toBe('active');
   });
 });
@@ -167,7 +230,7 @@ describe('real DNS resolution', () => {
 
   it('end-to-end: a real lookup produces a usable message', async () => {
     const result = await resolveCname('example.com');
-    const outcome = interpret('example.com', TARGET, result, false);
+    const outcome = interpret('example.com', TARGET, result, cert());
     expect(outcome.state).toBe('failed');
     expect(outcome.message).toContain('root domain');
   });

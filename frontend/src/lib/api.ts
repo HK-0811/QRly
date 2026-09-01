@@ -124,7 +124,15 @@ export interface DomainVerification {
     agreed_across_resolvers: boolean;
     resolvers: Array<{ resolver: string; target: string | null; reachable: boolean }>;
   };
-  certificate: { status: string | null; description: string; configured: boolean };
+  certificate: {
+    status: string | null;
+    description: string;
+    configured: boolean;
+    /** Whether the hostname is registered for a certificate at all. */
+    registered: boolean;
+    /** Why registration failed, when it did. */
+    registration_error: string | null;
+  };
 }
 
 export const api = {
