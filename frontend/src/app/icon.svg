@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    The QRly mark: three quarters of a QR finder pattern with the fourth corner
+    offset in the accent. The same shape components/chrome.tsx draws, which
+    builds it from box-shadow — so the paint order here is that stack rebuilt
+    back-to-front, because a CSS shadow sits behind its element and the first
+    shadow sits above the second:
+
+      back    ink    offset down    (0, 6)
+      middle  accent offset right   (6, 0)
+      front   ink    the element    (0, 0)
+
+    Squares are 16 with a 6 offset (0.375, as in Mark) inside a 24 viewBox, so
+    the glyph carries one unit of air on every side.
+
+    Two colours, one of which moves. Ink is #0A0A0A against a light tab strip at
+    19.8:1 and against a dark one at 1.23:1 — gone. Paper inverts that, 1.03:1
+    on light. So the ink squares swap with the scheme and the accent does not:
+    #DD2B09 reads on both grounds (4.75:1 light, 3.39:1 dark), which also means
+    that where a renderer ignores the media query below the mark degrades to its
+    accent bar rather than to nothing.
+
+    #DD2B09 is oklch(0.58 0.215 32) resolved to sRGB. The token stays authoritative
+    in globals.css; a favicon is parsed outside the document and cannot be relied
+    on to understand oklch, so this one place holds the hex.
+  -->
+  <style>
+    .ink { fill: #0A0A0A; }
+    @media (prefers-color-scheme: dark) {
+      .ink { fill: #FCFCFC; }
+    }
+  </style>
+
+  <rect class="ink" x="1" y="7" width="16" height="16" />
+  <rect x="7" y="1" width="16" height="16" fill="#DD2B09" />
+  <rect class="ink" x="1" y="1" width="16" height="16" />
+</svg>
