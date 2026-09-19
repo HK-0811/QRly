@@ -27,15 +27,24 @@ export default async function HomePage() {
 
   return (
     <Screen>
+      {/*
+        On a phone the header carries the brand, the source and one action. The
+        two text links are hidden below `sm` rather than squeezed: with them, a
+        375px viewport needs ~383px and the row either wraps or shoves the
+        wordmark, and both pages are one thumb away in the footer anyway.
+      */}
       <header
-        className={`flex items-center justify-between border-b border-[var(--rule-mid)] py-6 ${GUTTER}`}
+        className={`flex items-center justify-between gap-4 border-b border-[var(--rule-mid)] py-5 sm:py-6 ${GUTTER}`}
       >
         <Wordmark />
-        <nav className="flex items-center gap-5 text-[14px] sm:gap-7">
-          <NavItem href="/cost">What it costs</NavItem>
+        <nav className="flex shrink-0 items-center gap-4 text-[14px] sm:gap-7">
+          <NavItem href="/cost" className="hidden sm:inline-flex">
+            What it costs
+          </NavItem>
           <NavItem href="/privacy" className="hidden sm:inline-flex">
             Privacy
           </NavItem>
+          <GitHubLink />
           {user ? (
             <Link href="/links" className={buttonClass({ variant: 'primary', size: 'sm' })}>
               Dashboard
@@ -130,21 +139,30 @@ export default async function HomePage() {
         />
       </section>
 
+      {/*
+        Two groups, not one wrapping row. A single flex-wrap put the sentence
+        and three links into one pool, so on a phone the links broke wherever
+        the sentence happened to end and the row read as a spill. The links are
+        their own row now: on a phone they sit under the credit, left-aligned
+        with it; from `sm` they take the right edge.
+      */}
       <footer
-        className={`flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-[var(--rule-mid)] py-7 text-[12.5px] text-[var(--text-faint)] ${GUTTER}`}
+        className={`flex flex-col gap-y-3 border-t border-[var(--rule-mid)] py-6 text-[12.5px] text-[var(--text-faint)] sm:flex-row sm:items-center sm:justify-between sm:gap-x-6 sm:py-7 ${GUTTER}`}
       >
-        <span className="py-1.5">
+        <span className="max-w-[52ch] leading-relaxed">
           A demonstration project. Built on Cloudflare Workers and Supabase. Developed by{' '}
           <a href={AUTHOR.url} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
             {AUTHOR.name}
           </a>
           .
         </span>
-        <FooterLink href="/cost">What it costs</FooterLink>
-        <FooterLink href="/privacy">Privacy</FooterLink>
-        <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
-          Source
-        </a>
+        <nav className="flex shrink-0 items-center gap-x-5 sm:gap-x-6" aria-label="Footer">
+          <FooterLink href="/cost">What it costs</FooterLink>
+          <FooterLink href="/privacy">Privacy</FooterLink>
+          <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
+            Source
+          </a>
+        </nav>
       </footer>
     </Screen>
   );
@@ -173,6 +191,37 @@ function NavItem({
     >
       {children}
     </Link>
+  );
+}
+
+/**
+ * The repository, from the header.
+ *
+ * An icon rather than a word: the header already carries three words and a
+ * button, and this is the one item on it that leaves the site. The mark is
+ * GitHub's own (Octicons `mark-github`, MIT), which is what people scan a
+ * header for when they want the source.
+ *
+ * This design draws structure with rules, not boxes, so the thing that sets it
+ * apart from the in-site links is a hairline to its left from `sm` up — the
+ * same weight as the header's own bottom rule. On a phone the text links are
+ * gone and the rule would be dividing nothing, so it goes too. The hit area is
+ * the same 40px as the text items, and the label is on the anchor so a screen
+ * reader gets a destination rather than "link, image".
+ */
+function GitHubLink() {
+  return (
+    <a
+      href={REPO_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Source on GitHub"
+      className="inline-flex min-h-[40px] min-w-[40px] items-center justify-center text-[var(--text-soft)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)] sm:-ml-2 sm:border-l sm:border-[var(--rule-mid)] sm:pl-5"
+    >
+      <svg width="18" height="18" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+        <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z" />
+      </svg>
+    </a>
   );
 }
 
