@@ -14,6 +14,7 @@ Print a code once. Change where it goes forever. See where it was scanned — co
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres%20%2B%20Auth-3FCF8E?logo=supabase&logoColor=white)
 ![Next.js](https://img.shields.io/badge/Next.js-15-000000?logo=nextdotjs&logoColor=white)
 ![Cost](https://img.shields.io/badge/running%20cost-%240%2Fmonth-DD2B09)
+![License](https://img.shields.io/badge/license-MIT-0A0A0A)
 
 </div>
 
@@ -266,6 +267,10 @@ Safe Browsing verdicts need a free Google Cloud key; until it's set, links are r
 Issues and pull requests are welcome. Before opening one: run the three commands under **Testing**, and if you've added a dashboard page, run `npm run check:paths` — it exists because forgetting the forwarding list turns your new page into a 404 and forgetting the reserved list lets someone print a QR code that resolves to it.
 
 The design language is settled and documented in [`frontend/src/app/globals.css`](frontend/src/app/globals.css): hairline rules instead of cards, zero radius, one accent, light only. Changes that fit it are easy to merge.
+
+## License
+
+[MIT](LICENSE). Run your own copy — that was the point.
 
 ## Credits
 

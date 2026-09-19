@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { Screen, Wordmark, GUTTER } from '@/components/chrome';
-import { buttonClass } from '@/components/ui';
+import { buttonClass, cn } from '@/components/ui';
 import { HeroForm } from '@/components/landing/hero-form';
 import { DEFAULT_STYLE, renderSvg } from '@/lib/qr';
 import { REDIRECT_ORIGIN } from '@/lib/origins';
@@ -38,10 +38,10 @@ export default async function HomePage() {
       >
         <Wordmark />
         <nav className="flex shrink-0 items-center gap-4 text-[14px] sm:gap-7">
-          <NavItem href="/cost" className="hidden sm:inline-flex">
+          <NavItem href="/cost" phone="hidden">
             What it costs
           </NavItem>
-          <NavItem href="/privacy" className="hidden sm:inline-flex">
+          <NavItem href="/privacy" phone="hidden">
             Privacy
           </NavItem>
           <GitHubLink />
@@ -64,7 +64,18 @@ export default async function HomePage() {
       <section
         className={`mx-auto grid max-w-[1440px] items-center gap-14 py-16 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-[72px] lg:py-24 ${GUTTER}`}
       >
-        <div className="stagger">
+        {/*
+          `min-w-0` is load-bearing on a phone. A grid item's minimum width
+          defaults to its min-content, and this column's min-content is the
+          hero form's row: the input's intrinsic width from size="20" (~270px)
+          plus the nowrap button (~183px). `min-w-0` on the input only lets it
+          shrink in flex layout; intrinsic sizing ignores flex, so the grid
+          still saw 455px, grew its only column to match, and everything in it
+          ran off the right edge of a 400px screen. The `lg:` template guards
+          the same thing with minmax(0, …); below `lg` the implicit column has
+          no floor, so the item has to supply one.
+        */}
+        <div className="stagger min-w-0">
           <div
             className="mb-7 inline-flex items-center gap-2.5 border border-[var(--accent-line)] bg-[var(--accent-tint)] px-2.5 py-1.5 font-mono text-[12px] uppercase tracking-[0.1em] text-[var(--accent)]"
             style={{ ['--i' as string]: 0 }}
@@ -175,19 +186,32 @@ export default async function HomePage() {
  * The vertical padding is what makes it clickable; the colour is what makes it
  * look like the rest of the product.
  */
+/**
+ * `phone="hidden"` is a prop rather than a className, because the obvious
+ * version — appending `hidden sm:inline-flex` — never worked. This element sets
+ * `inline-flex` itself, and `hidden` is another display utility at the same
+ * specificity, so which one applies is decided by their order in Tailwind's
+ * output, not by anything written here. It resolved in favour of `inline-flex`,
+ * so the links meant to hide on a phone were visible on every phone, and the
+ * header overflowed at 360px. Choosing the display utility in one place means
+ * there is nothing to lose the argument to.
+ */
 function NavItem({
   href,
   children,
-  className,
+  phone,
 }: {
   href: string;
   children: React.ReactNode;
-  className?: string;
+  phone?: 'hidden';
 }) {
   return (
     <Link
       href={href}
-      className={`inline-flex min-h-[40px] items-center text-[var(--text-soft)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)] ${className ?? ''}`}
+      className={cn(
+        phone === 'hidden' ? 'hidden sm:inline-flex' : 'inline-flex',
+        'min-h-[40px] items-center text-[var(--text-soft)] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)]',
+      )}
     >
       {children}
     </Link>
