@@ -44,6 +44,9 @@ export default async function HomePage() {
           <NavItem href="/privacy" phone="hidden">
             Privacy
           </NavItem>
+          <NavItem href="/blog" phone="hidden">
+            Blog
+          </NavItem>
           <GitHubLink />
           {user ? (
             <Link href="/links" className={buttonClass({ variant: 'primary', size: 'sm' })}>
@@ -170,6 +173,7 @@ export default async function HomePage() {
         <nav className="flex shrink-0 items-center gap-x-5 sm:gap-x-6" aria-label="Footer">
           <FooterLink href="/cost">What it costs</FooterLink>
           <FooterLink href="/privacy">Privacy</FooterLink>
+          <FooterLink href="/blog">Blog</FooterLink>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
             Source
           </a>

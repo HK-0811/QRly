@@ -89,7 +89,14 @@ function frontendSegments(dir, prefix = []) {
 function appRootAssets(dir) {
   const METADATA =
     /^(favicon\.ico|icon\.(svg|png|ico)|apple-icon\.(png|jpg|jpeg)|opengraph-image\.\w+|twitter-image\.\w+|manifest\.(json|webmanifest)|robots\.txt|sitemap\.xml)$/;
-  return new Set(readdirSync(dir).filter((e) => METADATA.test(e)));
+  // Next also accepts these two as code, and serves the generated file under
+  // the static name. The Worker sees the URL, not the source file.
+  const GENERATED = { 'robots.ts': 'robots.txt', 'sitemap.ts': 'sitemap.xml' };
+  return new Set(
+    readdirSync(dir)
+      .filter((e) => METADATA.test(e) || e in GENERATED)
+      .map((e) => GENERATED[e] ?? e),
+  );
 }
 
 console.log('reading the real route files\n');

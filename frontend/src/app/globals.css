@@ -311,6 +311,141 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+
+  /* -------------------------------------------------------------------------
+     Article prose
+
+     The blog body is Markdown rendered to HTML at build time, so its elements
+     cannot carry utilities. This is the one place in the product where bare
+     element selectors are the right tool, and it is scoped to `.prose-qrly`
+     and kept inside the layer so it can never leak into a form.
+
+     The measure is set by the page (max-w-3xl); this only sets rhythm. Rules
+     rather than boxes for tables and asides, mono for code, the accent only
+     on links — the same drawing language as everything else.
+     ------------------------------------------------------------------------- */
+  .prose-qrly {
+    font-size: 15.5px;
+    line-height: 1.65;
+    color: var(--text-muted);
+  }
+  .prose-qrly > * + * {
+    margin-top: 1em;
+  }
+  .prose-qrly h2 {
+    margin-top: 2.2em;
+    font-size: 21px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    color: var(--text);
+    scroll-margin-top: 24px;
+  }
+  .prose-qrly h3 {
+    margin-top: 1.8em;
+    font-size: 16.5px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--text);
+    scroll-margin-top: 24px;
+  }
+  .prose-qrly h4 {
+    margin-top: 1.5em;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+  }
+  .prose-qrly strong {
+    font-weight: 600;
+    color: var(--text);
+  }
+  .prose-qrly a {
+    text-decoration: underline;
+    text-decoration-color: var(--accent-line);
+    text-underline-offset: 3px;
+  }
+  .prose-qrly a:hover {
+    text-decoration-color: var(--accent);
+  }
+  .prose-qrly ul,
+  .prose-qrly ol {
+    padding-left: 1.4em;
+  }
+  .prose-qrly ul {
+    list-style: disc;
+  }
+  .prose-qrly ol {
+    list-style: decimal;
+  }
+  .prose-qrly li + li {
+    margin-top: 0.4em;
+  }
+  .prose-qrly li > p + p {
+    margin-top: 0.5em;
+  }
+  .prose-qrly blockquote {
+    margin: 1.4em 0;
+    padding: 0.2em 0 0.2em 1.1em;
+    border-left: 2px solid var(--accent);
+    color: var(--text);
+  }
+  .prose-qrly code {
+    font-family: var(--font-mono);
+    font-size: 0.88em;
+    padding: 0.1em 0.35em;
+    background: var(--color-ink-100);
+    color: var(--text);
+  }
+  .prose-qrly pre {
+    margin: 1.4em 0;
+    padding: 14px 16px;
+    overflow-x: auto;
+    border: 1px solid var(--rule-mid);
+    background: var(--bg-subtle);
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+  .prose-qrly pre code {
+    padding: 0;
+    background: none;
+    font-size: inherit;
+  }
+  .prose-qrly hr {
+    margin: 2.4em 0;
+    border: 0;
+    border-top: 1px solid var(--rule-mid);
+  }
+  .prose-qrly table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    margin: 1.4em 0;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  .prose-qrly th,
+  .prose-qrly td {
+    padding: 8px 12px 8px 0;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--rule);
+  }
+  .prose-qrly th {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text-faint);
+    border-bottom-color: var(--rule-mid);
+  }
+  .prose-qrly img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid var(--rule-mid);
+  }
 }
 
 /* ---------------------------------------------------------------------------
