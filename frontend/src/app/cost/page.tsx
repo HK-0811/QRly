@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { Wordmark } from '@/components/chrome';
 import type { Metadata } from 'next';
 import pricing from '@/data/competitor-pricing.json';
+import { REPO_URL } from '@/lib/site';
 
 export const metadata: Metadata = {
   title: 'What this costs',
@@ -270,7 +271,16 @@ export default function CostPage() {
             is the belief that this is hard.
           </p>
           <p className="mt-3 text-[15px] leading-relaxed">
-            The source is here to be read. If it is useful, run your own copy.
+            The source is here to be read:{' '}
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-[14px] text-[var(--text)] underline decoration-[var(--rule-strong)] underline-offset-[3px] transition-[color,text-decoration-color] duration-[var(--dur)] ease-[var(--ease)] hover:decoration-[var(--accent)]"
+            >
+              {REPO_URL.replace(/^https?:\/\//, '')}
+            </a>
+            . If it is useful, run your own copy.
           </p>
         </Section>
 

@@ -5,6 +5,7 @@ import { buttonClass } from '@/components/ui';
 import { HeroForm } from '@/components/landing/hero-form';
 import { DEFAULT_STYLE, renderSvg } from '@/lib/qr';
 import { REDIRECT_ORIGIN } from '@/lib/origins';
+import { AUTHOR, REPO_URL } from '@/lib/site';
 
 export const dynamic = 'force-dynamic';
 
@@ -132,9 +133,18 @@ export default async function HomePage() {
       <footer
         className={`flex flex-wrap items-center gap-x-6 gap-y-1 border-t border-[var(--rule-mid)] py-7 text-[12.5px] text-[var(--text-faint)] ${GUTTER}`}
       >
-        <span className="py-1.5">A demonstration project. Built on Cloudflare Workers and Supabase.</span>
+        <span className="py-1.5">
+          A demonstration project. Built on Cloudflare Workers and Supabase. Developed by{' '}
+          <a href={AUTHOR.url} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
+            {AUTHOR.name}
+          </a>
+          .
+        </span>
         <FooterLink href="/cost">What it costs</FooterLink>
         <FooterLink href="/privacy">Privacy</FooterLink>
+        <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
+          Source
+        </a>
       </footer>
     </Screen>
   );
@@ -166,12 +176,17 @@ function NavItem({
   );
 }
 
+/*
+  Shared with the two external anchors in the footer, which cannot be a
+  <FooterLink>: next/link is for routes this app owns, and an off-site
+  destination wants target and rel that it has no reason to accept.
+*/
+const footerLinkClass =
+  'inline-flex min-h-[32px] items-center text-[var(--text-faint)] underline decoration-[var(--rule-strong)] underline-offset-[3px] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)] hover:decoration-[var(--accent)]';
+
 function FooterLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
-    <Link
-      href={href}
-      className="inline-flex min-h-[32px] items-center text-[var(--text-faint)] underline decoration-[var(--rule-strong)] underline-offset-[3px] transition-colors duration-[var(--dur)] ease-[var(--ease)] hover:text-[var(--text)] hover:decoration-[var(--accent)]"
-    >
+    <Link href={href} className={footerLinkClass}>
       {children}
     </Link>
   );
