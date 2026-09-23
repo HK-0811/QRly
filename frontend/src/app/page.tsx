@@ -6,6 +6,8 @@ import { HeroForm } from '@/components/landing/hero-form';
 import { DEFAULT_STYLE, renderSvg } from '@/lib/qr';
 import { REDIRECT_ORIGIN } from '@/lib/origins';
 import { AUTHOR, REPO_URL } from '@/lib/site';
+import { JsonLd } from '@/components/json-ld';
+import { graph, webApplication } from '@/lib/structured-data';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,6 +29,7 @@ export default async function HomePage() {
 
   return (
     <Screen>
+      <JsonLd data={graph(webApplication())} />
       {/*
         On a phone the header carries the brand, the source and one action. The
         two text links are hidden below `sm` rather than squeezed: with them, a
@@ -174,6 +177,7 @@ export default async function HomePage() {
           <FooterLink href="/cost">What it costs</FooterLink>
           <FooterLink href="/privacy">Privacy</FooterLink>
           <FooterLink href="/blog">Blog</FooterLink>
+          <FooterLink href="/faq">FAQ</FooterLink>
           <a href={REPO_URL} target="_blank" rel="noopener noreferrer" className={footerLinkClass}>
             Source
           </a>

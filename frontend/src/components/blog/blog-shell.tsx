@@ -26,6 +26,7 @@ export function BlogShell({
           <Wordmark />
           <nav className="ml-auto flex items-center gap-5 text-[13px]" aria-label="Blog">
             <HeaderLink href="/blog">Blog</HeaderLink>
+            <HeaderLink href="/faq">FAQ</HeaderLink>
             <HeaderLink href="/cost" phone="hidden">
               What it costs
             </HeaderLink>
@@ -48,6 +49,9 @@ export function BlogShell({
           <nav className="flex shrink-0 items-center gap-x-5" aria-label="Footer">
             <Link href="/" className={footerLinkClass}>
               Home
+            </Link>
+            <Link href="/faq" className={footerLinkClass}>
+              FAQ
             </Link>
             <Link href="/cost" className={footerLinkClass}>
               What it costs
@@ -96,10 +100,17 @@ export function MakeACodeCta() {
     <aside className="mt-12 border border-[var(--rule-mid)] p-6" style={{ boxShadow: 'var(--shadow-block-sm)' }}>
       <p className="eyebrow">Try it</p>
       <p className="mt-2 text-[17px] font-semibold tracking-tight">
-        Make a dynamic QR code now. No account, no watermark, no expiry.
+        Make a dynamic QR code now. No account to start, no watermark, no trial.
       </p>
+      {/*
+        "No expiry" used to close the first line, and it was only true once a
+        code is claimed: unclaimed codes are deleted after 30 days. This box
+        sits under every post and on /faq, whose answer states the 30 days, so
+        the two have to agree.
+      */}
       <p className="mt-1.5 text-[14px] leading-relaxed text-[var(--text-muted)]">
         Paste a link, download an SVG or PNG, and change where it points later without reprinting.
+        Claim it with a free account and it never expires.
       </p>
       <Link
         href="/create"

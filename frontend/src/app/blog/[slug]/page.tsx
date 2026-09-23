@@ -2,10 +2,18 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 import { BlogShell, MakeACodeCta } from '@/components/blog/blog-shell';
+import { JsonLd } from '@/components/json-ld';
 import { CATEGORIES, formatDate, getAllPosts, getPost, relatedPosts } from '@/lib/blog';
-import { AUTHOR } from '@/lib/site';
-
-const SITE = 'https://qrly.lol';
+import { AUTHOR, SITE_NAME, SITE_URL as SITE } from '@/lib/site';
+import {
+  AUTHOR_ID,
+  ORGANIZATION_ID,
+  WEBSITE_ID,
+  breadcrumbs,
+  faqPage,
+  graph,
+  markdownToText,
+} from '@/lib/structured-data';
 
 /**
  * Every post is generated at build time and nothing else is routable here.
@@ -36,7 +44,7 @@ export async function generateMetadata({
       title: post.title,
       description: post.description,
       url: `${SITE}/blog/${post.slug}`,
-      siteName: 'QRly',
+      siteName: SITE_NAME,
       publishedTime: post.date,
       modifiedTime: post.updated ?? post.date,
       authors: [AUTHOR.name],
@@ -53,23 +61,45 @@ export default async function BlogPost({ params }: { params: Promise<{ slug: str
   const related = relatedPosts(post);
 
   // Structured data, so a search engine reads this as an article with a date
-  // and an author rather than as a page with some text on it.
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Article',
-    headline: post.title,
-    description: post.description,
-    datePublished: post.date,
-    dateModified: post.updated ?? post.date,
-    author: { '@type': 'Person', name: AUTHOR.name, url: AUTHOR.url },
-    publisher: { '@type': 'Organization', name: 'QRly', url: SITE },
-    mainEntityOfPage: `${SITE}/blog/${post.slug}`,
-    keywords: post.keywords.join(', '),
-  };
+  // and an author rather than as a page with some text on it. The FAQPage is
+  // the post's own "Frequently asked" section, which is on the page below:
+  // answer engines lift question-and-answer pairs more readily than prose, and
+  // markup that restates visible text is the only kind worth publishing.
+  const url = `${SITE}/blog/${post.slug}`;
+  const jsonLd = graph(
+    {
+      '@type': 'BlogPosting',
+      '@id': `${url}#article`,
+      headline: post.title,
+      description: post.description,
+      datePublished: post.date,
+      dateModified: post.updated ?? post.date,
+      inLanguage: 'en',
+      articleSection: CATEGORIES[post.category],
+      keywords: post.keywords.join(', '),
+      author: { '@id': AUTHOR_ID },
+      publisher: { '@id': ORGANIZATION_ID },
+      isPartOf: { '@id': WEBSITE_ID },
+      mainEntityOfPage: url,
+    },
+    breadcrumbs([
+      { name: SITE_NAME, url: `${SITE}/` },
+      { name: 'Blog', url: `${SITE}/blog` },
+      { name: post.title, url },
+    ]),
+    ...(post.faqs.length > 0
+      ? [
+          faqPage(
+            url,
+            post.faqs.map((f) => ({ question: f.question, answer: markdownToText(f.answer) })),
+          ),
+        ]
+      : []),
+  );
 
   return (
     <BlogShell>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <JsonLd data={jsonLd} />
 
       <nav className="text-[12.5px] text-[var(--text-faint)]" aria-label="Breadcrumb">
         <Link href="/blog" className="text-[var(--text-faint)] hover:text-[var(--text)]">

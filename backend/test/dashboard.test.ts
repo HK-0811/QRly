@@ -56,6 +56,26 @@ describe('the dashboard and the redirect engine share one hostname', () => {
     }
   });
 
+  /*
+    Same failure, different reader. A crawler asks for these by convention, not
+    by following a link, so a missing entry here would not show up anywhere a
+    person looks: /robots.txt would come from the redirect engine's
+    Disallow-everything stub and the whole site would drop out of search.
+  */
+  it('forwards the files crawlers and language models fetch by convention', async () => {
+    for (const path of [
+      '/robots.txt',
+      '/sitemap.xml',
+      '/llms.txt',
+      '/llms-full.txt',
+      '/faq',
+      '/587c0b2b17a418e6e0e6acb2f056a2d6.txt',
+    ]) {
+      const res = await get(`${PLATFORM}${path}`, { DASHBOARD });
+      expect(await res.text(), path).toBe(`dashboard:${path}`);
+    }
+  });
+
   it('does NOT forward a short code — the hot path still owns the catch-all', async () => {
     const res = await get(`${PLATFORM}/aB3xK9p`, { DASHBOARD });
     expect(await res.text()).not.toContain('dashboard:');

@@ -54,10 +54,20 @@ export interface PostMeta {
 }
 
 export interface Post extends PostMeta {
+  /** The Markdown body as written, for the plain-text copies in /llms-full.txt. */
+  markdown: string;
   /** Rendered HTML for the body. Authored by us, never by a user. */
   html: string;
   /** The h2 headings, for the on-page table of contents. */
   headings: Array<{ id: string; text: string }>;
+  /** The questions in the post's "Frequently asked" section, for FAQPage markup. */
+  faqs: PostFaq[];
+}
+
+export interface PostFaq {
+  question: string;
+  /** Markdown, exactly as in the post. */
+  answer: string;
 }
 
 const CONTENT_DIR = join(process.cwd(), 'content', 'blog');
@@ -146,6 +156,53 @@ function render(markdown: string): { html: string; headings: Post['headings'] } 
   return { html, headings };
 }
 
+/**
+ * Markdown that is not a post — a FAQ answer — to HTML, with the same link
+ * rules as a post so an off-site link behaves the same wherever it appears.
+ */
+export function renderPassage(markdown: string): string {
+  return render(markdown).html;
+}
+
+// ---------------------------------------------------------------------------
+// Frequently asked
+// ---------------------------------------------------------------------------
+
+/**
+ * The question-and-answer pairs at the end of a post, read from the Markdown
+ * rather than the HTML because the Markdown has a shape and the HTML does not.
+ *
+ * Every post closes with a `## Frequently asked` section in which each
+ * question is a line in bold and its answer is the lines after it:
+ *
+ *   **Do QR codes expire?**
+ *   The code does not; it is a pattern with no date in it.
+ *
+ * That section becomes FAQPage structured data on the post. The same text is
+ * on the page, which is the condition for the markup being honest at all.
+ * tools/check-blog.mjs fails a post whose section yields fewer than three.
+ */
+export function extractFaqs(markdown: string): PostFaq[] {
+  const pairs: Array<{ question: string; lines: string[] }> = [];
+  let inSection = false;
+
+  for (const line of markdown.split(/\r?\n/)) {
+    if (line.startsWith('## ')) {
+      inSection = /^## Frequently asked/i.test(line);
+      continue;
+    }
+    if (!inSection) continue;
+    const question = /^\*\*(.+?)\*\*\s*$/.exec(line);
+    if (question) pairs.push({ question: question[1].trim(), lines: [] });
+    else if (line.trim() && pairs.length > 0) pairs[pairs.length - 1].lines.push(line.trim());
+  }
+
+  // A bold line with nothing under it is emphasis, not a question.
+  return pairs
+    .filter((p) => p.lines.length > 0)
+    .map((p) => ({ question: p.question, answer: p.lines.join(' ') }));
+}
+
 // ---------------------------------------------------------------------------
 // The index
 // ---------------------------------------------------------------------------
@@ -167,8 +224,10 @@ function readPost(slug: string): Post {
       .map((k) => k.trim())
       .filter(Boolean),
     minutes: Math.max(1, Math.round(words / 230)),
+    markdown: body,
     html,
     headings,
+    faqs: extractFaqs(body),
   };
 }
 

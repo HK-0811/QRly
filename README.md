@@ -157,7 +157,7 @@ node tools/seed-scans.mjs you@example.com 5000
 cd backend && npm test      # 176 tests in the Workers runtime, including every failure mode in architecture.md §12
 npm run test:rls            # row-level security, adversarially, with two real signed-in accounts
 npm run check:paths         # the dashboard, the forwarding list and the reserved slugs agree
-npm run check:blog          # every post has its front matter, and every internal link resolves
+npm run check:blog          # every post has its front matter and FAQ, and every internal link (FAQ included) resolves
 ```
 
 The end-to-end suites in `tools/` run against the real Worker and the real Supabase project. They create their own accounts and delete them afterwards.
@@ -255,6 +255,26 @@ select job, ok, ran_at from cron_runs order by ran_at desc limit 10;
 ## Writing a blog post
 
 Add a Markdown file to [`frontend/content/blog/`](frontend/content/blog/). The filename is the URL. The front matter is flat `key: value` — `title`, `description`, `date`, `category` (one of the ten in [`frontend/src/lib/blog.ts`](frontend/src/lib/blog.ts)) and `keywords` — and the body is GitHub-flavoured Markdown with `##` sections and no H1. Every post is rendered at build time to static HTML, so the Worker never reads a file; `/blog`, `/sitemap.xml` and `/robots.txt` are all generated from the same index. `npm run check:blog` fails on a missing field, a link to a post that does not exist, or a body that stops short.
+
+## Search engines and answer engines
+
+Everything a crawler or a language model reads is generated at build time from two sources: the posts in `frontend/content/blog/` and the FAQ in [`frontend/src/lib/faq.ts`](frontend/src/lib/faq.ts).
+
+| URL | What it is |
+|---|---|
+| `/faq` | 92 questions with one anchor each, and `FAQPage` structured data |
+| `/llms.txt` | The site as a Markdown index for language models ([llmstxt.org](https://llmstxt.org)) |
+| `/llms-full.txt` | The same with every FAQ answer and every guide's questions and answers inlined |
+| `/robots.txt` | Names the AI crawlers explicitly and states `Content-Signal: search=yes, ai-input=yes, ai-train=yes` |
+| `/sitemap.xml` | Every public URL |
+
+Every page carries `Organization`, `WebSite` and author markup under stable `@id`s. The landing page adds `WebApplication` with a price of zero. Each post adds `BlogPosting`, `BreadcrumbList` and a `FAQPage` built from its own "Frequently asked" section.
+
+Every answer in `faq.ts` must be true of the deployed code, because answer engines repeat what they read. The rules are in the comment at the top of the file.
+
+**Cloudflare decides before robots.txt does.** If the zone's AI Crawl Control blocks training crawlers, GPTBot, ClaudeBot, CCBot and Amazonbot get a 403 at the edge whatever `robots.txt` says. The setting is under *AI Crawl Control* in the Cloudflare dashboard.
+
+**After a deploy that adds pages,** run `npm run indexnow`. It submits the live sitemap to Bing and the other IndexNow engines. The key file it relies on is `frontend/public/<key>.txt`.
 
 ## Refreshing the cost page
 

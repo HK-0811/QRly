@@ -25,6 +25,7 @@ export const MAX_SLUG_LENGTH = 64;
 export const RESERVED_SLUGS = new Set([
   // reachable Worker paths
   'api', 'health', '__scheduled', 'favicon.ico', 'icon.svg', 'robots.txt', 'sitemap.xml',
+  'llms.txt', 'llms-full.txt', '587c0b2b17a418e6e0e6acb2f056a2d6.txt',
   '.well-known', 'cdn-cgi',
   // dashboard surface. The hostnames ARE merged: the dashboard is served from the
   // platform hostname alongside short codes, so every one of these is a live path
@@ -36,7 +37,7 @@ export const RESERVED_SLUGS = new Set([
   'analytics', 'stats', 'reports', 'create', 'new',
   // marketing and legal surface
   'about', 'pricing', 'privacy', 'terms', 'legal', 'contact', 'support',
-  'help', 'docs', 'blog', 'status', 'security', 'cost', 'compare',
+  'help', 'docs', 'blog', 'faq', 'status', 'security', 'cost', 'compare',
   // things that would read as official on a printed code
   'www', 'mail', 'ftp', 'ns', 'ns1', 'ns2', 'mx', 'smtp', 'test', 'staging',
   'dev', 'demo', 'null', 'undefined', 'true', 'false',

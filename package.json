@@ -10,7 +10,8 @@
     "db:query": "node tools/query.mjs",
     "test:rls": "node tools/verify-rls.mjs",
     "check:paths": "node tools/check-dashboard-paths.mjs",
-    "check:blog": "node tools/check-blog.mjs"
+    "check:blog": "node tools/check-blog.mjs",
+    "indexnow": "node tools/indexnow.mjs"
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
